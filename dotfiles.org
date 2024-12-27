@@ -1,0 +1,3367 @@
+#+OPTIONS: toc:2
+#+PROPERTY: header-args :mkdirp yes
+* Dotfiles
+My desktop configuration stored as a single org mode file. The configs are exported to their respective location using org-mode's tangle feature (`org-bable-tangle`).
+* Scripts
+** Screenshot file
+#+BEGIN_SRC bash :tangle "~/bin/screenshot_selection_file.sh" :shebang "#!/bin/bash"
+  grim -g "$(slurp)"
+#+END_SRC
+** Screenshot paste
+#+BEGIN_SRC bash :tangle "~/bin/screenshot_selection_paste.sh" :shebang "#!/bin/bash"
+  grim -g "$(slurp)" - | wl-copy
+  notify-send "Copied selection to the clipboard"
+#+END_SRC
+** Sway app_id
+#+BEGIN_SRC bash :tangle "~/bin/sway_appid.sh" :shebang "#!/bin/bash"
+  app_id=$(swaymsg -t get_tree | jq '.. | select(.type?) | select(.focused==true) | .app_id')
+  assignment="assign [app_id=${app_id}] \$wsp1"
+  notify-send "Copied ${assignment} to the clipboard"
+  echo $assignment | wl-copy
+#+END_SRC
+** Audio Script
+#+begin_src python :tangle "~/bin/audio.py" :shebang "#!/bin/python"
+  import pulsectl
+  import math
+  import sys
+  import getopt
+  import subprocess
+  import os
+  from enum import Enum 
+
+  VOLUME_STEP = 0.1
+  PULSE_CLIENT_NAME = 'status-client'
+  ICON_MUTED = "ﱝ"
+  ICON_SPEAKERS = ""
+  ICON_HEADSET = ""
+  ICON_TV = ""
+  ICON_FULL = "█"
+  ICON_EMPTY = " "
+  ICONS_NUMBER = 7
+
+  pulse = pulsectl.Pulse(PULSE_CLIENT_NAME)
+  sink = pulse.get_sink_by_name(pulse.server_info().default_sink_name)
+
+  # map sinks to icon, maybe more stuff later
+  sinks = {
+  "alsa_output.usb-HP__Inc_HyperX_Virtual_Surround_Sound_00000000-00.analog-stereo": ICON_HEADSET,
+  "alsa_output.pci-0000_0a_00.4.analog-stereo": ICON_SPEAKERS,
+  "alsa_output.pci-0000_08_00.1.hdmi-stereo-extra2": ICON_TV
+  }
+
+  class Click(Enum):
+      none = 0
+      left = 1
+      middle = 2
+      right = 3
+      scroll_up = 4
+      scroll_down = 5
+
+  def vol_str(sink):
+      num_icons = 10
+      num_full_icons = math.floor(ICONS_NUMBER * pulse.volume_get_all_chans(sink))
+      num_empty_icons = ICONS_NUMBER - num_full_icons
+      if sink.mute != 0:
+          return ICON_MUTED
+      else:
+          return ICON_FULL * num_full_icons + ICON_EMPTY * num_empty_icons
+
+  def print_status():
+      sink_name = pulse.server_info().default_sink_name
+      if sink_name in sinks:
+          sink_icon = sinks[pulse.server_info().default_sink_name]
+      else:
+          sink_icon = pulse.server_info().default_sink_name
+      print(sink_icon + ' ' + vol_str(sink))
+
+
+  def reload_bar():
+      cmd = subprocess.run('pkill -SIGRTMIN+7 i3blocks', shell=True, check=True, text=True)
+
+  def clicked():
+      button = os.environ.get("BLOCK_BUTTON", None)
+      if bool(button):
+          return Click(int(button))
+      else:
+          return Click(0)
+  def vol_up():
+      pulse.volume_change_all_chans(sink, VOLUME_STEP)
+  def vol_down():
+      pulse.volume_change_all_chans(sink, -VOLUME_STEP)
+  def vol_set(volume):
+      pulse.volume_set_all_chans(sink, volume)
+  def mute_toggle():
+      pulse.mute(sink, mute=not bool(sink.mute))
+
+  click = clicked()
+  if click is not Click.none:
+      match click:
+          case Click.left:
+              c = '~/Projects/desktop-utility-rust/target/debug/desktop-utility-rust audio cycle'
+              cmd = subprocess.run(c, shell=True, check=True, text=True)
+
+          case Click.scroll_up:
+              vol_up()
+
+          case Click.scroll_down:
+              vol_down()
+
+          # case _:
+
+
+      # reload_bar()
+      print_status()
+  elif sys.argv[1] == 'status':
+      print_status()
+  elif sys.argv[1] == 'cycle':
+      cycle_sink()
+      reload_bar()
+  elif sys.argv[1] == 'vol_up':
+      vol_up()
+      reload_bar()
+  elif sys.argv[1] == 'vol_down':
+      vol_down()
+      reload_bar()
+  elif sys.argv[1] == 'vol_set':
+      vol_set(float(sys.argv[2]))
+      reload_bar()
+  elif sys.argv[1] == 'mute_toggle':
+      mute_toggle()
+      reload_bar()
+#+end_src
+* zsh
+** zlogin
+Simple login mechanism. Starts Sway on tty1, i3/xorg on tty2. Other ttys are the standard console.
+#+BEGIN_SRC bash :tangle "~/.zlogin" :shebang "#!/bin/bash"
+  if [[ -z $DISPLAY ]]; then
+      if [[ $(tty) = /dev/tty1 ]]; then
+          # enable Wayland on some tool kits
+          # export QT_QPA_PLATFORM=wayland-egl
+          # export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+
+          export GDK_BACKEND=wayland
+
+          # Firefox
+          export MOZ_ENABLE_WAYLAND=1
+          export MOZ_DBUS_REMOTE=1
+
+
+          # Fix for Java GUI 
+          export _JAVA_AWT_WM_NONREPARENTING=1
+
+          exec sway
+      fi
+      if [[ $(tty) = /dev/tty2 ]]; then
+          exec Hyprland
+      fi
+  fi
+
+#+END_SRC
+** zshrc
+#+BEGIN_SRC bash :tangle "~/.zshrc" :shebang "#!/bin/bash"
+  ### General
+
+  # set -eu
+
+  # vi keybindings in command line
+  bindkey -v
+
+  # autocompletion
+  # load custom completions
+  fpath=($HOME/.local/share/zsh/site-functions $fpath)
+  autoload -U compinit promptinit
+  compinit
+  promptinit
+
+  # enable colors
+  autoload -U colors && colors 
+
+  ### FZF
+
+  # add FZF keybindings to zsh
+  [ -f /usr/share/fzf/key-bindings.zsh ] && . /usr/share/fzf/key-bindings.zsh
+  [ -f /usr/share/fzf/completion.zsh ] && . /usr/share/fzf/completion.zsh
+  # bindkey '^F' fzf-completion
+  # bindkey '^I' $fzf_default_completion
+
+  ### Aliases
+
+  # dotfile management
+  # alias c='/usr/bin/git --git-dir=$HOME/.config/dotfiles --work-tree=$HOME'
+
+  # edit shortcut
+  alias e="$EDITOR"
+  # workaround for terminal bug
+  alias ssh='TERM=xterm-256color ssh'
+  # docker ip address
+
+  # ls stuff
+  alias ls='ls --color=auto'
+  alias ll='ls -lh'
+
+  alias df='df -h --exclude-type=tmpfs'
+
+  # less with smart case
+  alias less='less -i -R'
+
+  # colored grep
+  alias grep='grep --color'
+  # colored ls
+  # alias ls='ls --color'
+  # interactive and verboose
+  alias mv='mv -iv'
+  alias cp='cp -iv'
+  alias rm='rm -iv'
+  alias g='git'
+  alias calc='python -i -c "from math import *"'
+
+  alias pacrm='trizen -Rsnu $(trizen -Qq | fzf)'
+  alias pacupgr='trizen -Syu; pkill -SIGRTMIN+6 i3blocks'
+
+  # always smart case
+  alias rg='rg --smart-case'
+
+  # alias sambamnt='sudo mount -v -t cifs -o credentials=~/.smbcred'
+
+  alias c='chezmoi'
+
+  alias gdb='gdb --silent'
+
+  alias py='python'
+
+  ### History
+
+  export HISTFILE=~/.zsh_history
+  export HISTSIZE=5000                   # big history
+  export SAVEHIST=5000                   # big history
+  # setopt append_history           # append
+  # unsetopt hist_ignore_space      # ignore space prefixed commands
+  # setopt hist_reduce_blanks       # trim blanks
+  # setopt inc_append_history       # add commands as they are typed, don't wait until shell exit 
+  # setopt share_history            # share hist between sessions
+  setopt append_history
+  setopt extended_history
+  setopt hist_expire_dups_first
+  setopt hist_ignore_all_dups     # no duplicate
+  setopt hist_ignore_space
+  # setopt hist_verify
+  # setopt inc_append_history
+  setopt share_history # share command history data
+
+  ### Prompt
+
+  setopt prompt_subst
+  COLOR="blue"
+  export PROMPT="%F{$COLOR}%2~ λ %f"
+  export RPROMPT=""
+
+  export PATH=$PATH:$HOME/go/bin
+  export PATH=$PATH:$HOME/.cargo/bin
+  zsh_highlight="/usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+  source $zsh_highlight
+
+  ### Functions
+  function docker-ip {
+      docker inspect --format "{{ .NetworkSettings.IPAddress }}" "$@"
+  }
+
+  # case insensitive completion
+  zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
+
+
+  # fix?
+  export FZF_DEFAULT_OPTS="--extended --cycle" 
+
+  function paccleanup {
+      f="/tmp/pacclean_"
+      f+=$(uuidgen)
+      pacman -Qdtq > "$f"
+      sudo pacman -Rsnu "$(< $f)"
+  }
+  function pacq {
+      pkg="$(trizen -Qq | sk --header 'ctrl+s: open in firefox' --bind 'ctrl-s:execute-silent(firefox "https://www.archlinux.org/packages/?q="{})')"
+      if [ -n "$pkg" ]; then
+          trizen -Syu "$pkg"
+          ~/.config/i3blocks/blocks/updates.sh --refresh
+      fi
+  }
+  function pacin {
+      pkg="$(trizen -Ssq | sk --header 'ctrl+s: open in firefox' --bind 'ctrl-s:execute-silent(firefox "https://www.archlinux.org/packages/?q="{})')"
+      if [ -n "$pkg" ]; then
+          trizen -Syu "$pkg"
+          ~/.config/i3blocks/blocks/updates.sh --refresh
+      fi
+  }
+  function aurin {
+      f="/tmp/aur_packages"
+      if [ ! -f $f ]; then
+          # first two lines are only metadata
+          curl https://aur.archlinux.org/packages.gz | gunzip | tail -n +2 > $f
+      fi
+      pkg="$(sk --header 'ctrl+s: open in firefox' --bind 'ctrl-s:execute-silent(firefox "https://aur.archlinux.org/packages/"{})' < $f)"
+      if [ -n "$pkg" ]; then
+          trizen -S "$pkg"
+          ~/.config/i3blocks/blocks/updates.sh --refresh
+      fi
+  }
+  # look at the diff before checking out new head
+  function git_diff_merge {
+      # only run if there are updates
+      if [ "$(git diff HEAD..origin/HEAD | wc -l)" -gt 0 ]; then
+          clear
+          git diff HEAD..origin/HEAD
+          printf "Download (y/n)?"
+          read -k 1 download
+
+          if [ "$download" = 'y' ]; then
+              git checkout -B master origin/HEAD
+          fi
+      fi
+  }
+  function emacs_update {
+      cd ~/.config/emacs/straight/repos/ || return
+      # parallel fetching
+      echo "fetching git repos"
+      ls | parallel git -C {} fetch origin master
+      for d in $(ls . | grep -v "^anki-editor$\|^cmake$\|^org$\|^straight.el$"); do
+          (cd "$d" || exit; git_diff_merge)
+      done
+
+  }
+
+  # vterm
+  vterm_cmd() {
+      printf "\e]51;E"
+      local r
+      while [[ $# -gt 0 ]]; do
+          r="${1//\\/\\\\}"
+          r="${r//\"/\\\"}"
+          printf '"%s" ' "$r"
+          shift
+      done
+      printf "\e\\"
+  }
+#+END_SRC
+** zshenv
+#+BEGIN_SRC bash :tangle "~/.zshenv" :shebang "#!/bin/zsh"
+  export EDITOR="/usr/bin/nvim"
+  export XDG_CONFIG_HOME="$HOME/.config"
+  export XDG_CACHE_HOME="$HOME/.cache"
+  export XDG_DATA_HOME="$HOME/.local/share"
+  export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
+
+  export EDITOR="nvim"
+  export VISUAL="nvim"
+
+  export BROWSER="firefox"
+
+  # ag as default source for fzf
+  # export FZF_DEFAULT_COMMAND='ag -g ""'
+  # export FZF_COMPLETION_TRIGGER=''
+
+#+END_SRC
+* Desktop Environment
+** Keybindings
+#+NAME: sway-keybindings-table
+| $mod+Shift+e          | exec $exit_cmd                                             |
+| $mod+Shift+r          | reload                                                     |
+| $mod+c                | exec $notification_close_cmd                               |
+| $mod+shift+c          | exec $notification_restore_cmd                             |
+| $mod+1                | workspace $wsp1                                            |
+| $mod+2                | workspace $wsp2                                            |
+| $mod+3                | workspace $wsp3                                            |
+| $mod+4                | workspace $wsp4                                            |
+| $mod+5                | workspace $wsp5                                            |
+| $mod+6                | workspace $wsp6                                            |
+| $mod+7                | workspace $wsp7                                            |
+| $mod+8                | workspace $wsp8                                            |
+| $mod+Shift+1          | move container to workspace $wsp1                          |
+| $mod+Shift+2          | move container to workspace $wsp2                          |
+| $mod+Shift+3          | move container to workspace $wsp3                          |
+| $mod+Shift+4          | move container to workspace $wsp4                          |
+| $mod+Shift+5          | move container to workspace $wsp5                          |
+| $mod+Shift+6          | move container to workspace $wsp6                          |
+| $mod+Shift+7          | move container to workspace $wsp7                          |
+| $mod+Shift+8          | move container to workspace $wsp8                          |
+| $mod+Shift+$left      | move left                                                  |
+| $mod+Shift+$down      | move down                                                  |
+| $mod+Shift+$up        | move up                                                    |
+| $mod+Shift+$right     | move right                                                 |
+| $mod+x                | move workspace to output left                              |
+| $mod+b                | split h                                                    |
+| $mod+$left            | focus left                                                 |
+| $mod+$down            | focus down                                                 |
+| $mod+$up              | focus up                                                   |
+| $mod+$right           | focus right                                                |
+| $mod+f                | fullscreen toggle                                          |
+| $mod+t                | layout tabbed                                              |
+| $mod+e                | layout toggle split                                        |
+| $mod+Shift+space      | floating toggle                                            |
+| $mod+Return           | exec $terminal                                             |
+| $mod+q                | kill                                                       |
+| $mod+d                | exec "rofi -combi-modi window,drun,run -show combi"        |
+| XF86AudioRaiseVolume  | exec pactl -n dotfiles set-sink-volume @DEFAULT_SINK@ +10% |
+| XF86AudioLowerVolume  | exec pactl -n dotfiles set-sink-volume @DEFAULT_SINK@ -10% |
+| XF86AudioMute         | exec pactl -n dotfiles set-sink-mute @DEFAULT_SINK@ toggle |
+| XF86AudioPlay         | exec playerctl play-pause                                  |
+| XF86AudioPause        | exec playerctl pause                                       |
+| XF86AudioNext         | exec playerctl next                                        |
+| XF86AudioPrev         | exec playerctl previous                                    |
+| XF86MonBrightnessDown | exec $light_script --down                                  |
+| XF86MonBrightnessUp   | exec $light_script --up                                    |
+| $mod+r                | mode "resize"                                              |
+| $mod+m                | mode $media                                                |
+| $mod+v                | mode $volume                                               |
+| $mod+i                | mode "Inert"                                               |
+| $mod+Shift+s          | exec ~/bin/screenshot_selection_paste.sh                   |
+** i3/sway common config
+Since Sway and i3 are mostly compatible we can extract a common base config.
+#+NAME: i3_sway_common
+#+BEGIN_SRC conf :noweb yes
+  ###
+  ### begin i3/sway shared config
+  ###
+
+  ### Constants
+  set $terminal alacritty
+  # variables for directions
+  set $left h
+  set $down j
+  set $up k
+  set $right l
+  # windows as modifier key
+  set $mod Mod4
+
+  # no mouse focus
+  focus_follows_mouse no
+
+  # disable mouse switch when focusing different window
+  mouse_warping none
+
+  # default layout
+  workspace_layout default
+
+  ### Workspaces
+
+  # terminal
+  set $wsp1 "1:"
+
+  # browser
+  set $wsp2 "2:"
+  assign [class="^Chromium$" instance="^chromium$"] $wsp2
+  assign [class="firefox"] $wsp2
+
+  # dev
+  set $wsp3 "3:"
+  assign [class="Emacs"] $wsp3
+  assign [class="Emacs"] $wsp3
+  assign [class="NetBeans IDE"] $wsp3
+  assign [class="^jetbrains-.*$"] $wsp3
+  assign [class="^QtCreator$"] $wsp3
+  assign [class="Godot"] $wsp3
+
+
+  # communication
+  set $wsp4 "4:"
+  assign [class="^Thunderbird$"] $wsp4
+  assign [class="^Skype$"] $wsp4
+  assign [class="^Signal"] $wsp4
+  assign [app_id="signal"] $wsp4
+  assign [class="discord"] $wsp4
+
+  # misc
+  set $wsp5 "5:"
+  assign [class="^JDownloader$"] $wsp5
+  assign [title="XMind"] $wsp5
+  assign [class="libreoffice"] $wsp5
+  assign [class="^Anki$"] $wsp5
+  assign [app_id="anki"] $wsp5
+  assign [class="^calibre$"] $wsp5
+
+  # media
+  set $wsp6 "6:"
+  assign [class="^Kodi$" instance="^Kodi$"] $wsp6
+  assign [class="^mpv$" instance="^gl$"] $wsp6
+  assign [app_id="mpv"] $wsp6
+
+
+  # music
+  set $wsp7 "7:"
+  # workaround for spotify assignment
+  for_window [class="Spotify"] move to workspace $wsp7
+
+  # games
+  set $wsp8 "8:"
+  assign [class="^Steam$" instance="^Steam$"] $wsp8
+  assign [class="^steam$" instance="^steam$"] $wsp8
+  assign [class="dolphin-emu"] $wsp8
+  assign [class="MTGA"] $wsp8
+  assign [instance="gta5.exe"] $wsp8
+  assign [class="Lutris"] $wsp8
+  assign [title="Blizzard Battle.net"] $wsp8
+  assign [title="League of Legends"] $wsp8
+
+  # Keybindings {{{
+
+  # Mod Key == Windows button
+
+
+  # Use Mouse+$mod to drag floating windows to their wanted position
+  floating_modifier $mod
+
+  # Media player controls
+  set $player_script $HOME/.config/i3blocks/blocks/mpris-tail.py
+  <<sway-keybindings()>>
+
+  # change focus between tiling / floating windows
+  # bindsym $mod+space focus mode_toggle
+
+  # focus the parent container
+  # bindsym $mod+a focus parent
+
+  # focus the child container
+  #bindsym $mod+d focus child
+
+  # switch to workspace
+
+  # move focused container to workspace
+
+  ### Modes
+
+  # resize window (you can also use the mouse for that)
+  mode "resize" {
+  # These bindings trigger as soon as you enter the resize mode
+
+  # Pressing left will shrink the window’s width.
+  # Pressing right will grow the window’s width.
+  # Pressing up will shrink the window’s height.
+  # Pressing down will grow the window’s height.
+  bindsym $left resize shrink width 10 px or 10 ppt
+  bindsym $right resize grow width 10 px or 10 ppt
+  bindsym $down resize grow height 10 px or 10 ppt
+  bindsym $up resize shrink height 10 px or 10 ppt
+
+  # back to normal: Enter or Escape
+  bindsym Return mode "default"
+  bindsym Escape mode "default"
+  }
+
+  # This mode bypasses all i3wm keys in case of compabillity problems:
+  mode "Inert" {
+  bindsym $mod+Escape mode "default"
+  }
+
+  set $media "media (h) prev (j) next (m) play-pause (L) Lyrics"
+  mode $media {
+  bindsym h exec playerctl previous
+  bindsym l exec playerctl next
+  bindsym m exec playerctl play-pause
+
+  bindsym Escape mode "default"
+  }
+
+  set $volume "volume (j) - (k) + (m) mute"
+  mode $volume {
+  bindsym j exec $volume_script --down
+  bindsym k exec $volume_script --up
+  bindsym m exec $volume_script --mute
+
+  bindsym Escape mode "default"
+  }
+
+  ### Startup Programs
+  # exec --no-startup-id kdeconnect-indicator
+  exec --no-startup-id nm-applet
+  # exec --no-startup-id redshift-gtk
+  exec --no-startup-id ~/bin/keyboard_settings.sh
+  exec --no-startup-id blueman-applet
+  exec --no-startup-id firefox
+  exec --no-startup-id discord
+  exec --no-startup-id "signal-desktop --ozone-platform=wayland"
+  exec --no-startup-id $terminal
+  exec --no-startup-id swaymsg 'workspace $wsp7; exec spotify 2> /dev/null'
+  exec --no-startup-id thunderbird
+  # exec --no-startup-id plasma-browser-integration-host
+  # exec --no-startup-id steam
+  exec --no-startup-id 'gtk-launch emacs'
+  exec --no-startup-id 'udiskie'
+  exec --no-startup-id 'playerctld'
+
+
+  for_window [title="Android Emulator*"] floating enable
+
+  # Launcher
+
+  # bindsym $mod+n exec termite --name=launcher -e "bash -c 'find /usr/share/applications -name *.desktop | xargs basename -s .desktop -a | fzf | xargs -r swaymsg -t command exec gtk-launch'"
+  for_window [class="^launcher$"] floating enable, border none
+
+  # Visuals {{{
+
+  set $background #0A0908
+  set $foreground #dad0ce
+
+  set $color0 #0A0908
+  set $color1 #8B4E2F
+  set $color2 #8A6F63
+  set $color3 #9A8579
+  set $color4 #6C898D
+  set $color5 #AC9E9A
+  set $color6 #C2A59C
+  set $color7 #dad0ce
+  set $color8 #989190
+  set $color9 #8B4E2F
+  set $color10 #8A6F63
+  set $color11 #9A8579
+  set $color12 #6C898D
+  set $color13 #AC9E9A
+  set $color14 #C2A59C
+  set $color15 #dad0ce
+
+  # no borders
+  #hide_edge_borders both
+
+  default_border pixel
+
+  # Gaps
+  smart_gaps on
+  gaps inner 25
+  gaps outer 25
+
+  # borders if more than 1 child
+  smart_borders on
+  # new_window pixel 1
+
+  font pango:SourceCodePro 15
+
+  # class                 border  backgr. text indicator child_border
+  client.focused          $color1 $color1 #ffffff $color1 $color1
+  #client.focused_inactive $bg     $bg     $fg  $bg       $bg
+  #client.unfocused        $bg     $bg     $fg  $bg       $bg
+  #client.urgent           $bg     $bg     $fg  $bg       $bg
+  #client.placeholder      $bg     $bg     $fg  $bg       $bg
+
+  #client.background       $bg
+
+
+  # }}}
+
+  # Bar {{{
+
+  set $transp "#00000000"
+  bar {
+  swaybar_command waybar
+  # status_command i3blocks
+  # hide numbers in workspace names
+  strip_workspace_numbers yes
+  position top
+  # mode hide
+  # status_command i3blocks
+  separator_symbol "|"
+  # tray_output "HDMI-A-1"
+  modifier $mod
+  colors {
+  #color class       border  back.   text
+  focused_workspace $color1 $color1 #ffffff
+  inactive_workspace $transp $transp #ffffff
+  active_workspace $color3 $color3 #ffffff
+  urgent_workspace #a30000 $transp #ffffff
+  statusline #aaaaaa
+  background $transp
+  }
+  }
+
+  # }}}
+  # end i3/sway shared config
+#+END_SRC
+** Sway
+*** Main
+#+BEGIN_SRC conf :tangle "~/.config/sway/config" :noweb yes
+  # include packaged configs, necessary for screen sharing
+  include /etc/sway/config.d/*
+
+  set $exit_cmd "swaymsg exit"
+
+  set $notification_server "dunst"
+  set $notification_close_cmd "dunstctl close"
+  set $notification_restore_cmd "dunstctl history-pop"
+  <<i3_sway_common>>
+
+
+  assign [app_id="firefox"] $wsp2
+  assign [app_id="thunderbird"] $wsp4
+  assign [app_id="emacs"] $wsp3
+  assign [app_id="org.openscad.openscad"] $wsp5
+  assign [app_id="lutris"] $wsp8
+
+  # Sway Settings {{{
+
+
+  # keyboard settings
+  input * {
+  repeat_rate 50
+  repeat_delay 300
+  xkb_layout us,de
+  xkb_options grp:win_space_toggle,caps:escape
+
+  # touchpad
+  tap enabled
+
+  }
+  # hide cursor after 150 seconds
+  seat seat0 hide_cursor 150000
+
+  # bindsym $mod+z opacity 0.5
+  # bindsym $mod+shift+z opacity 1.0
+
+  # Monitor
+  output HDMI-A-1 position 0 0
+  output DP-1 position 1920 0 scale 2 adaptive_sync off
+  # }}}
+
+
+  exec "swaybg --color \"#000000\""
+  exec --no-startup-id $notification_server
+
+
+  # include $HOME/.config/sway/config.local
+
+  # tv mode
+  # output HDMI-A-1 scale 2
+#+END_SRC
+*** Electron Wayland (VSCode etc)
+#+BEGIN_SRC conf :tangle ~/.config/code-flags.conf
+--enable-features=WaylandWindowDecorations
+--ozone-platform-hint=auto
+#+END_SRC
+*** Waybar
+#+BEGIN_SRC conf :tangle ~/.config/waybar/config
+    {
+        "layer": "bottom", // Waybar at the lowest so floating windows can be above it
+        "position": "top", // Waybar position (top|bottom|left|right)
+        "height": 30, // Waybar height (to be removed for auto height)
+        // "width": 1280, // Waybar width
+        "spacing": 4, // Gaps between modules (4px)
+        // Choose the order of the modules
+        "modules-left": ["wlr/workspaces", "sway/workspaces", "sway/mode", "sway/scratchpad", "custom/media"],
+        "modules-center": ["sway/window"],
+        "modules-right": [
+            "idle_inhibitor",
+            "pulseaudio",
+            "network",
+            // "cpu",
+            // "memory",
+            // "temperature",
+            // "backlight",
+            // "keyboard-state",
+            "sway/language",
+            "battery",
+            "custom/updates",
+            "clock",
+            "tray"
+        ],
+        // Modules configuration
+        // "sway/workspaces": {
+        //     "disable-scroll": true,
+        //     "all-outputs": true,
+        //     "warp-on-scroll": false,
+        //     "format": "{name}: {icon}",
+        //     "format-icons": {
+        //         "1": "",
+        //         "2": "",
+        //         "3": "",
+        //         "4": "",
+        //         "5": "",
+        //         "urgent": "",
+        //         "focused": "",
+        //         "default": ""
+        //     }
+        // },
+        "keyboard-state": {
+            "numlock": true,
+            "capslock": true,
+            "format": "{name} {icon}",
+            "format-icons": {
+                "locked": "",
+                "unlocked": ""
+            }
+        },
+        "sway/language": {
+            "format": " {short}",
+            "on-click": "swaymsg input type:keyboard xkb_switch_layout next",
+        },
+        "sway/mode": {
+            "format": "<span style=\"italic\">{}</span>"
+        },
+        "sway/scratchpad": {
+            "format": "{icon} {count}",
+            "show-empty": false,
+            "format-icons": ["", ""],
+            "tooltip": true,
+            "tooltip-format": "{app}: {title}"
+        },
+        "idle_inhibitor": {
+            "format": "{icon}",
+            "format-icons": {
+                "activated": "",
+                "deactivated": ""
+            }
+        },
+        "tray": {
+            // "icon-size": 21,
+            "spacing": 10
+        },
+        "clock": {
+            "format": " {:%d.%m.%y %H:%M}",
+            "tooltip-format": "<tt><small>{calendar}</small></tt>",
+            "calendar": {
+                        "mode"          : "month",
+                        "mode-mon-col"  : 3,
+                        "weeks-pos"     : "right",
+                        "on-scroll"     : 1,
+                        "on-click-right": "mode",
+                        "format": {
+                                  "months":     "<span color='#ffead3'><b>{}</b></span>",
+                                  "days":       "<span color='#ecc6d9'><b>{}</b></span>",
+                                  "weeks":      "<span color='#99ffdd'><b>W{}</b></span>",
+                                  "weekdays":   "<span color='#ffcc66'><b>{}</b></span>",
+                                  "today":      "<span color='#ff6699'><b><u>{}</u></b></span>"
+                                  }
+                        },
+        },
+        "cpu": {
+            "format": "{usage}% ",
+            "tooltip": false
+        },
+        "memory": {
+            "format": "{}% "
+        },
+        "temperature": {
+            // "thermal-zone": 2,
+            // "hwmon-path": "/sys/class/hwmon/hwmon2/temp1_input",
+            "critical-threshold": 80,
+            // "format-critical": "{temperatureC}°C {icon}",
+            "format": "{temperatureC}°C {icon}",
+            "format-icons": ["", "", ""]
+        },
+        "backlight": {
+            // "device": "acpi_video1",
+            "format": "{percent}% {icon}",
+            "format-icons": ["", "", "", "", "", "", "", "", ""]
+        },
+        "battery": {
+            "states": {
+                // "good": 95,
+                "warning": 30,
+                "critical": 15
+            },
+            "format": "{capacity}% {icon}",
+            "format-charging": "{capacity}% ",
+            "format-plugged": "{capacity}% ",
+            "format-alt": "{time} {icon}",
+            // "format-good": "", // An empty format will hide the module
+            // "format-full": "",
+            "format-icons": ["", "", "", "", ""]
+        },
+        "network": {
+            // "interface": "wlp2*", // (Optional) To force the use of this interface
+            "format-wifi": "{essid} ({signalStrength}%) ",
+            "format-ethernet": "{ipaddr}/{cidr} ",
+            "tooltip-format": "{ifname} via {gwaddr} ",
+            "format-linked": "{ifname} (No IP) ",
+            "format-disconnected": "Disconnected ⚠",
+            "format-alt": "{ifname}: {ipaddr}/{cidr}"
+        },
+        "pulseaudio": {
+            "width": 1,
+            "scroll-step": 10,
+            "format": "{icon} {volume}%",
+            "format-bluetooth": "{icon} {volume}%",
+            "format-bluetooth-muted": "{icon} ",
+            "format-muted": "",
+            "format-source": "{volume}% ",
+            "format-source-muted": "",
+            "format-icons": {
+                "headphone": "",
+                "hands-free": "",
+                "headset": "",
+                "phone": "",
+                "portable": "",
+                "car": "",
+                "alsa_output.usb-HP__Inc_HyperX_Virtual_Surround_Sound_00000000-00.analog-stereo": "",
+                "default": ["", "", ""]
+            },
+            "on-click-right": "pactl --format=json list sinks short | jq -cM --unbuffered \"[.[].name] | .[((index(\\\"$(pactl get-default-sink)\\\")+1)%length)]\" | xargs pactl set-default-sink", // cycle through sinks
+            "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+        },
+        "custom/media": {
+            "format": "{icon}{}",
+            "return-type": "json",
+            "format-icons": {
+                "Playing": " ",
+                "Paused": " ",
+            },
+            "max-length":70,
+            "exec": "playerctl --follow -p spotify metadata --format '{\"text\": \"{{artist}} - {{markup_escape(title)}}\", \"tooltip\": \"\", \"alt\": \"{{status}}\", \"class\": \"{{status}}\"}'",
+            "on-click": "playerctl -p spotify play-pause",
+            "on-scroll-up": "playerctl next",
+            "on-scroll-down": "playerctl previous",
+        },
+        "custom/updates": {
+            "format": " {}",
+            "interval": 3600,
+            "exec": "checkupdates | wc -l",
+            "exec-if": "exit 0",
+            // "on-click": "alacritty -e 'sudo pacman -Syu'; pkill -SIGRTMIN+8 waybar", // update system
+            "signal": 8
+        },
+  }
+
+#+END_SRC
+** i3
+#+BEGIN_SRC conf :tangle ~/.config/i3/config :noweb yes
+  set $exit_cmd "i3-msg exit"
+  set $notification_close_cmd "dunstctl close"
+  set $notification_restore_cmd "dunstctl history-pop"
+
+
+  <<i3_sway_common>>
+
+  exec --no-startup-id dunst
+
+
+
+  # {{{ i3 Settings
+
+
+  set_from_resource $color1 i3wm.color1
+  set_from_resource $color2 i3wm.color2
+  set_from_resource $color3 i3wm.color3
+  set_from_resource $color4 i3wm.color4
+  set_from_resource $color5 i3wm.color5
+  set_from_resource $color6 i3wm.color6
+  set_from_resource $color7 i3wm.color7
+  set_from_resource $color8 i3wm.color8
+  set_from_resource $color9 i3wm.color9
+  # }}}
+
+  # Bar {{{
+
+  set $transp "#00000000"
+  bar {
+  # swaybar_command waybar
+  status_command i3blocks
+  # hide numbers in workspace names
+  strip_workspace_numbers yes
+  position top
+  # mode hide
+  # status_command i3blocks
+  separator_symbol "|"
+  # tray_output "HDMI-A-1"
+  modifier $mod
+  colors {
+  #color class       border  back.   text
+  focused_workspace $color1 $color1 #ffffff
+  inactive_workspace $transp $transp #ffffff
+  active_workspace $color3 $color3 #ffffff
+  urgent_workspace #a30000 $transp #ffffff
+  statusline #aaaaaa
+  background $transp
+  }
+  }
+
+  # }}}
+
+#+END_SRC
+** xinit
+#+BEGIN_SRC bash :tangle "~/.xinitrc"
+  #!/bin/bash
+
+  # necessary for proper environment!
+  if [ -d /etc/X11/xinit/xinitrc.d ] ; then
+      for f in /etc/X11/xinit/xinitrc.d/?*.sh ; do
+          [ -x "$f" ] && . "$f"
+      done
+      unset f
+  fi
+
+  # monitor setup
+  xrandr --output DisplayPort-1 --primary --right-of DVI-D-0 --auto
+  exec i3
+#+END_SRC
+** Dunst - Notification Server
+#+BEGIN_SRC conf :tangle ~/.config/dunst/config
+  [global]
+  ### Display ###
+
+  # Which monitor should the notifications be displayed on.
+  monitor = 0
+
+  # Display notification on focused monitor.  Possible modes are:
+  #   mouse: follow mouse pointer
+  #   keyboard: follow window with keyboard focus
+  #   none: don't follow anything
+  #
+  # "keyboard" needs a window manager that exports the
+  # _NET_ACTIVE_WINDOW property.
+  # This should be the case for almost all modern window managers.
+  #
+  # If this option is set to mouse or keyboard, the monitor option
+  # will be ignored.
+  follow = mouse
+
+  # The geometry of the window:
+  #   [{width}]x{height}[+/-{x}+/-{y}]
+  # The geometry of the message window.
+  # The height is measured in number of notifications everything else
+  # in pixels.  If the width is omitted but the height is given
+  # ("-geometry x2"), the message window expands over the whole screen
+  # (dmenu-like).  If width is 0, the window expands to the longest
+  # message displayed.  A positive x is measured from the left, a
+  # negative from the right side of the screen.  Y is measured from
+  # the top and down respectively.
+  # The width can be negative.  In this case the actual width is the
+  # screen width minus the width defined in within the geometry option.
+  geometry = "300x15-90+20"
+
+  # Show how many messages are currently hidden (because of geometry).
+  indicate_hidden = yes
+
+  # Shrink window if it's smaller than the width.  Will be ignored if
+  # width is 0.
+  shrink = no
+
+  # The transparency of the window.  Range: [0; 100].
+  # This option will only work if a compositing window manager is
+  # present (e.g. xcompmgr, compiz, etc.).
+  transparency = 0
+
+  # The height of the entire notification.  If the height is smaller
+  # than the font height and padding combined, it will be raised
+  # to the font height and padding.
+  notification_height = 0
+
+  # Draw a line of "separator_height" pixel height between two
+  # notifications.
+  # Set to 0 to disable.
+  separator_height = 2
+
+  # Padding between text and separator.
+  padding = 8
+
+  # Horizontal padding.
+  horizontal_padding = 8
+
+  # Defines width in pixels of frame around the notification window.
+  # Set to 0 to disable.
+  frame_width = 3
+
+  # Defines color of the frame around the notification window.
+  frame_color = "#aaaaaa"
+
+  # Define a color for the separator.
+  # possible values are:
+  #  * auto: dunst tries to find a color fitting to the background;
+  #  * foreground: use the same color as the foreground;
+  #  * frame: use the same color as the frame;
+  #  * anything else will be interpreted as a X color.
+  separator_color = frame
+
+  # Sort messages by urgency.
+  sort = yes
+
+  # Don't remove messages, if the user is idle (no mouse or keyboard input)
+  # for longer than idle_threshold seconds.
+  # Set to 0 to disable.
+  idle_threshold = 120
+
+  ### Text ###
+
+  font = Monospace 8
+
+  # The spacing between lines.  If the height is smaller than the
+  # font height, it will get raised to the font height.
+  line_height = 0
+
+  # Possible values are:
+  # full: Allow a small subset of html markup in notifications:
+  #        <b>bold</b>
+  #        <i>italic</i>
+  #        <s>strikethrough</s>
+  #        <u>underline</u>
+  #
+  #        For a complete reference see
+  #        <http://developer.gnome.org/pango/stable/PangoMarkupFormat.html>.
+  #
+  # strip: This setting is provided for compatibility with some broken
+  #        clients that send markup even though it's not enabled on the
+  #        server. Dunst will try to strip the markup but the parsing is
+  #        simplistic so using this option outside of matching rules for
+  #        specific applications *IS GREATLY DISCOURAGED*.
+  #
+  # no:    Disable markup parsing, incoming notifications will be treated as
+  #        plain text. Dunst will not advertise that it has the body-markup
+  #        capability if this is set as a global setting.
+  #
+  # It's important to note that markup inside the format option will be parsed
+  # regardless of what this is set to.
+  markup = full
+
+  # The format of the message.  Possible variables are:
+  #   %a  appname
+  #   %s  summary
+  #   %b  body
+  #   %i  iconname (including its path)
+  #   %I  iconname (without its path)
+  #   %p  progress value if set ([  0%] to [100%]) or nothing
+  #   %n  progress value if set without any extra characters
+  # Markup is allowed
+  format = "%a%\n<b>%s</b>\n%b %p"
+
+  # Alignment of message text.
+  # Possible values are "left", "center" and "right".
+  alignment = left
+
+  # Show age of message if message is older than show_age_threshold
+  # seconds.
+  # Set to -1 to disable.
+  show_age_threshold = 60
+
+  # Split notifications into multiple lines if they don't fit into
+  # geometry.
+  word_wrap = yes
+
+  # Ignore newlines '\n' in notifications.
+  ignore_newline = no
+
+  # Merge multiple notifications with the same content
+  stack_duplicates = true
+
+  # Hide the count of merged notifications with the same content
+  hide_duplicate_count = false
+
+  # Display indicators for URLs (U) and actions (A).
+  show_indicators = yes
+
+  ### Icons ###
+
+  # Align icons left/right/off
+  icon_position = left
+
+  # Scale larger icons down to this size, set to 0 to disable
+  max_icon_size = 64
+
+  # Paths to default icons.
+  icon_folders = /usr/share/icons/gnome/16x16/status/:/usr/share/icons/gnome/16x16/devices/:/usr/share/icons/hicolor/32x32/apps/
+
+  ### History ###
+
+  # Should a notification popped up from history be sticky or timeout
+  # as if it would normally do.
+  sticky_history = yes
+
+  # Maximum amount of notifications kept in history
+  history_length = 100
+
+  ### Misc/Advanced ###
+
+  # dmenu path.
+  dmenu = /usr/bin/dmenu -p dunst:
+
+  # Browser for opening urls in context menu.
+  browser = /usr/bin/firefox -new-tab
+
+  # Always run rule-defined scripts, even if the notification is suppressed
+  always_run_script = true
+
+  # Define the title of the windows spawned by dunst
+  title = Dunst
+
+  # Define the class of the windows spawned by dunst
+  class = Dunst
+
+  # Print a notification on startup.
+  # This is mainly for error detection, since dbus (re-)starts dunst
+  # automatically after a crash.
+  startup_notification = false
+
+  ### Legacy
+
+  # Use the Xinerama extension instead of RandR for multi-monitor support.
+  # This setting is provided for compatibility with older nVidia drivers that
+  # do not support RandR and using it on systems that support RandR is highly
+  # discouraged.
+  #
+  # By enabling this setting dunst will not be able to detect when a monitor
+  # is connected or disconnected which might break follow mode if the screen
+  # layout changes.
+  force_xinerama = false
+
+  # Experimental features that may or may not work correctly. Do not expect them
+  # to have a consistent behaviour across releases.
+  [experimental]
+  # Calculate the dpi to use on a per-monitor basis.
+  # If this setting is enabled the Xft.dpi value will be ignored and instead
+  # dunst will attempt to calculate an appropriate dpi value for each monitor
+  # using the resolution and physical size. This might be useful in setups
+  # where there are multiple screens with very different dpi values.
+  per_monitor_dpi = false
+
+  [shortcuts]
+
+  # Shortcuts are specified as [modifier+][modifier+]...key
+  # Available modifiers are "ctrl", "mod1" (the alt-key), "mod2",
+  # "mod3" and "mod4" (windows-key).
+  # Xev might be helpful to find names for keys.
+
+  # Close notification.
+  close = ctrl+space
+
+  # Close all notifications.
+  close_all = ctrl+shift+space
+
+  # Redisplay last message(s).
+  # On the US keyboard layout "grave" is normally above TAB and left
+  # of "1". Make sure this key actually exists on your keyboard layout,
+  # e.g. check output of 'xmodmap -pke'
+  history = ctrl+grave
+
+  # Context menu.
+  context = ctrl+shift+grave
+
+  [urgency_low]
+  # IMPORTANT: colors have to be defined in quotation marks.
+  # Otherwise the "#" and following would be interpreted as a comment.
+  background = "#222222"
+  foreground = "#888888"
+  timeout = 10
+  # Icon for notifications with low urgency, uncomment to enable
+  #icon = /path/to/icon
+
+  [urgency_normal]
+  background = "#285577"
+  foreground = "#ffffff"
+  timeout = 10
+  # Icon for notifications with normal urgency, uncomment to enable
+  #icon = /path/to/icon
+
+  [urgency_critical]
+  background = "#900000"
+  foreground = "#ffffff"
+  frame_color = "#ff0000"
+  timeout = 0
+  # Icon for notifications with critical urgency, uncomment to enable
+  #icon = /path/to/icon
+
+  # Every section that isn't one of the above is interpreted as a rules to
+  # override settings for certain messages.
+  # Messages can be matched by "appname", "summary", "body", "icon", "category",
+  # "msg_urgency" and you can override the "timeout", "urgency", "foreground",
+  # "background", "new_icon" and "format".
+  # Shell-like globbing will get expanded.
+  #
+  # SCRIPTING
+  # You can specify a script that gets run when the rule matches by
+  # setting the "script" option.
+  # The script will be called as follows:
+  #   script appname summary body icon urgency
+  # where urgency can be "LOW", "NORMAL" or "CRITICAL".
+  #
+  # NOTE: if you don't want a notification to be displayed, set the format
+  # to "".
+  # NOTE: It might be helpful to run dunst -print in a terminal in order
+  # to find fitting options for rules.
+
+  #[espeak]
+  #    summary = "*"
+  #    script = dunst_espeak.sh
+
+  #[script-test]
+  #    summary = "*script*"
+  #    script = dunst_test.sh
+
+  #[ignore]
+  #    # This notification will not be displayed
+  #    summary = "foobar"
+  #    format = ""
+
+  #[history-ignore]
+  #    # This notification will not be saved in history
+  #    summary = "foobar"
+  #    history_ignore = yes
+
+  #[signed_on]
+  #    appname = Pidgin
+  #    summary = "*signed on*"
+  #    urgency = low
+  #
+  #[signed_off]
+  #    appname = Pidgin
+  #    summary = *signed off*
+  #    urgency = low
+  #
+  #[says]
+  #    appname = Pidgin
+  #    summary = *says*
+  #    urgency = critical
+  #
+  #[twitter]
+  #    appname = Pidgin
+  #    summary = *twitter.com*
+  #    urgency = normal
+  #
+  # vim: ft=cfg
+
+#+END_SRC
+* Emacs Config
+:PROPERTIES:
+:header-args: :tangle ~/.config/emacs/init.el :mkdirp yes
+:END:
+** Early init
+Shamelessly stolen from Doom Emacs https://github.com/hlissner/doom-emacs/blob/master/early-init.el
+#+BEGIN_SRC emacs-lisp :tangle ~/.config/emacs/early-init.el
+    ;;; early-init.el -*- lexical-binding: t; -*-
+
+  ;; Emacs 27.1 introduced early-init.el, which is run before init.el, before
+  ;; package and UI initialization happens, and before site files are loaded.
+
+  ;; A big contributor to startup times is garbage collection. We up the gc
+  ;; threshold to temporarily prevent it from running, then reset it later by
+  ;; enabling `gcmh-mode'. Not resetting it will cause stuttering/freezes.
+  (setq gc-cons-threshold most-positive-fixnum)
+
+  ;; Prevent unwanted runtime compilation for gccemacs (native-comp) users;
+  ;; packages are compiled ahead-of-time when they are installed and site files
+  ;; are compiled when gccemacs is installed.
+  (setq native-comp-deferred-compilation nil)
+
+  ;; In Emacs 27+, package initialization occurs before `user-init-file' is
+  ;; loaded, but after `early-init-file'. Doom handles package initialization, so
+  ;; we must prevent Emacs from doing it early!
+  (setq package-enable-at-startup nil)
+
+  ;; In noninteractive sessions, prioritize non-byte-compiled source files to
+  ;; prevent the use of stale byte-code. Otherwise, it saves us a little IO time
+  ;; to skip the mtime checks on every *.elc file.
+  (setq load-prefer-newer noninteractive)
+
+  (unless (or (daemonp)
+              noninteractive
+              init-file-debug)
+    (let ((old-file-name-handler-alist file-name-handler-alist))
+      ;; `file-name-handler-alist' is consulted on each `require', `load' and
+      ;; various path/io functions. You get a minor speed up by unsetting this.
+      ;; Some warning, however: this could cause problems on builds of Emacs where
+      ;; its site lisp files aren't byte-compiled and we're forced to load the
+      ;; *.el.gz files (e.g. on Alpine).
+      (setq-default file-name-handler-alist nil)
+      ;; ...but restore `file-name-handler-alist' later, because it is needed for
+      ;; handling encrypted or compressed files, among other things.
+      (defun doom-reset-file-handler-alist-h ()
+        (setq file-name-handler-alist
+              ;; Merge instead of overwrite because there may have bene changes to
+              ;; `file-name-handler-alist' since startup we want to preserve.
+              (delete-dups (append file-name-handler-alist
+                                   old-file-name-handler-alist))))
+      (add-hook 'emacs-startup-hook #'doom-reset-file-handler-alist-h 101))
+
+    ;; Premature redisplays can substantially affect startup times and produce
+    ;; ugly flashes of unstyled Emacs.
+    (setq-default inhibit-redisplay t
+                  inhibit-message t)
+    (add-hook 'window-setup-hook
+              (lambda ()
+                (setq-default inhibit-redisplay nil
+                              inhibit-message nil)
+                (redisplay)))
+
+    ;; Site files tend to use `load-file', which emits "Loading X..." messages in
+    ;; the echo area, which in turn triggers a redisplay. Redisplays can have a
+    ;; substantial effect on startup times and in this case happens so early that
+    ;; Emacs may flash white while starting up.
+    (define-advice load-file (:override (file) silence)
+      (load file nil 'nomessage))
+
+    ;; Undo our `load-file' advice above, to limit the scope of any edge cases it
+    ;; may introduce down the road.
+    (define-advice startup--load-user-init-file (:before (&rest _) init-doom)
+      (advice-remove #'load-file #'load-file@silence)))
+
+
+  ;; Contrary to what many Emacs users have in their configs, you don't need
+  ;; more than this to make UTF-8 the default coding system:
+  (set-language-environment "UTF-8")
+
+  ;; set-language-enviornment sets default-input-method, which is unwanted
+  (setq default-input-method nil)
+
+    ;;; UI settings
+  (push '(menu-bar-lines . 0)   default-frame-alist)
+  (push '(tool-bar-lines . 0)   default-frame-alist)
+  (push '(vertical-scroll-bars) default-frame-alist)
+  ;; And set these to nil so users don't have to toggle the modes twice to
+  ;; reactivate them.
+  (setq menu-bar-mode nil
+        tool-bar-mode nil
+        scroll-bar-mode nil)
+  (setq inhibit-startup-message t)
+  (setq initial-scratch-message nil)
+#+END_SRC
+** Bootstrap
+#+BEGIN_SRC emacs-lisp
+  ;;; init.el --- init file
+
+  ;;; Commentary:
+  ;; Emacs configuration
+
+  ;;; Code:
+
+  ;; In noninteractive sessions, prioritize non-byte-compiled source files to
+  ;; prevent the use of stale byte-code. Otherwise, it saves us a little IO time
+  ;; to skip the mtime checks on every *.elc file.
+  (setq load-prefer-newer noninteractive)
+
+  ;; gcc updates require libgccjit to update as well
+  ;; until both are updated => disable native compilation
+                                          ; (setq comp-deferred-compilation nil)
+
+  ;;; straight.el setup
+
+  ;; use develop branch, better org fixes
+  ;; (setq straight-repository-branch "develop")
+  ;; straight.el bootstrap
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+
+                                          ; load `use-package`
+  (straight-use-package 'use-package)
+  (setq straight-use-package-by-default t)
+  ;;(setq use-package-always-defer t
+  ;;;    use-package-verbose t)
+
+#+END_SRC
+
+** Custom Constants
+*** Name & E-Mail
+#+BEGIN_SRC emacs-lisp
+  (setq user-full-name "name")
+  (setq user-mail-address "mail")
+#+END_SRC
+*** Cache Directory
+#+BEGIN_SRC emacs-lisp
+  (setq nri/cache "~/.cache/emacs")
+#+END_SRC
+** More sensible defaults
+A bunch of stuff that really should be the default configuration.
+*** No Littering
+#+BEGIN_SRC emacs-lisp
+  (use-package no-littering
+    :demand t
+    :init
+    (setq no-littering-etc-directory user-emacs-directory)
+    (setq no-littering-var-directory
+          (expand-file-name "data/" nri/cache)))
+#+END_SRC
+**** No auto-save files (##)
+#+BEGIN_SRC emacs-lisp
+  (setq auto-save-default nil) ;; TODO only in git?
+#+END_SRC
+**** Disable lock files
+#+BEGIN_SRC emacs-lisp
+  (setq create-lockfiles nil)
+#+END_SRC
+**** No Backup Files (~)
+#+BEGIN_SRC emacs-lisp
+  (setq make-backup-files nil) ;; TODO only in git?
+#+END_SRC
+**** Seperate Custom File
+This gets rid of the auto generated data that 'custom' saves to the init file.
+#+BEGIN_SRC emacs-lisp
+  (setq custom-file (expand-file-name "custom.el" nri/cache))
+#+END_SRC
+*** Reload changed files automatically
+#+BEGIN_SRC emacs-lisp
+  (global-auto-revert-mode)
+  (setq global-auto-revert-non-file-buffers t) ;; also dired etc
+  (setq auto-revert-verbose nil) ;; no messages
+#+END_SRC
+*** Highlight HTTP Links
+#+BEGIN_SRC emacs-lisp
+  (use-package goto-addr
+    :hook (prog-mode . goto-address-prog-mode))
+#+END_SRC
+*** Better compilation buffer
+#+BEGIN_SRC emacs-lisp
+  (setq compilation-scroll-output 'first-error)
+#+END_SRC
+*** Save session
+#+BEGIN_SRC emacs-lisp
+  ;; (desktop-save-mode t) ;; return to last buffers
+  (save-place-mode t) ;; return to point in buffer
+  (savehist-mode t) ;; save minibuffer history
+#+END_SRC
+*** Kill processes without prompt when quitting
+#+BEGIN_SRC emacs-lisp
+  (setq confirm-kill-processes nil)
+#+END_SRC
+*** No annoying prompts when creating a new file
+#+BEGIN_SRC emacs-lisp
+  (setq confirm-nonexistent-file-or-buffer nil
+        ido-create-new-buffer 'always)
+#+END_SRC
+*** y/n is enough
+#+BEGIN_SRC emacs-lisp
+  (defalias 'yes-or-no-p 'y-or-n-p)
+#+END_SRC
+*** UTF-8 Encoding
+#+BEGIN_SRC emacs-lisp
+  (setq locale-coding-system 'utf-8) ; pretty
+  (set-terminal-coding-system 'utf-8) ; pretty
+  (set-keyboard-coding-system 'utf-8) ; pretty
+  (set-selection-coding-system 'utf-8) ; please
+  (prefer-coding-system 'utf-8) ; with sugar on top
+  (setq-default indent-tabs-mode nil)
+#+END_SRC
+*** Unique buffer names when same file names
+#+BEGIN_SRC emacs-lisp
+  (setq uniquify-buffer-name-style 'forward)
+#+END_SRC
+*** Recent files
+#+BEGIN_SRC emacs-lisp
+  (use-package recentf
+    :config
+    (add-to-list 'recentf-exclude no-littering-var-directory)
+    (setq recentf-max-menu-items 500)
+    (setq recentf-max-saved-items 500)
+    (recentf-mode 1))
+  ;; (setq recentf-save-file (expand-file-name "recentf" nri/cache))
+#+END_SRC
+*** Performance
+**** Garbage Collection
+#+BEGIN_SRC emacs-lisp
+  (use-package gcmh
+    :config (gcmh-mode t))
+#+END_SRC
+**** Let Emacs reads more data 
+#+BEGIN_SRC emacs-lisp
+  (setq read-process-output-max (* 1024 1024)) ;; 1mb
+#+END_SRC
+*** Keep selection after operation
+#+BEGIN_SRC emacs-lisp
+  (transient-mark-mode 0)
+#+END_SRC
+
+*** Single Space after periods
+#+BEGIN_SRC emacs-lisp
+  (setq sentence-end-double-space nil)
+#+END_SRC
+*** Always end with a new line
+#+BEGIN_SRC emacs-lisp
+  (setq require-final-newline t)
+#+END_SRC
+*** Autoload
+#+BEGIN_SRC emacs-lisp
+  (setq load-prefer-newer t)
+#+END_SRC
+*** Make quoted-insert Hex by default
+#+BEGIN_SRC emacs-lisp
+  (setq read-quoted-char-radix 16)
+#+END_SRC
+*** Show Commands in minibuffer instantly
+#+BEGIN_SRC emacs-lisp
+  (setq echo-keystrokes 0.01)
+#+END_SRC
+*** Load 100MB Files without asking
+#+BEGIN_SRC emacs-lisp
+  (setq large-file-warning-threshold 100000000)
+#+END_SRC
+*** No Cursor in Minibuffer
+#+BEGIN_SRC emacs-lisp
+  (setq minibuffer-prompt-properties
+        '(read-only t point-entered minibuffer-avoid-prompt face minibuffer-prompt))
+#+END_SRC
+*** Follow Symlinks automatically
+#+BEGIN_SRC emacs-lisp
+  (setq vc-follow-symlinks t)
+#+END_SRC
+
+*** Async Shell Command no popup
+#+BEGIN_SRC emacs-lisp
+  (add-to-list 'display-buffer-alist
+               (cons "\\*Async Shell Command\\*.*" (cons #'display-buffer-no-window nil)))
+#+END_SRC
+*** Color in Compilation
+#+BEGIN_SRC emacs-lisp
+  (use-package ansi-color
+    :hook (compilation-filter . endless/colorize-compilation)
+    :init
+    (defun endless/colorize-compilation ()
+      "Colorize from `compilation-filter-start' to `point'."
+      (let ((inhibit-read-only t))
+        (ansi-color-apply-on-region
+         compilation-filter-start (point)))))
+#+END_SRC
+*** Fix long lines
+#+BEGIN_SRC emacs-lisp
+                                          ;(setq bidi-paragraph-direction 'left-to-right)
+  (setq bidi-inhibit-bpa t)
+  ;; (global-so-long-mode t)
+#+END_SRC
+*** No Line number in mode line
+#+BEGIN_SRC emacs-lisp
+  ;; (line-number-mode nil)
+  ;; (column-number-mode nil)
+  ;; (size-indication-mode nil)
+
+#+END_SRC
+
+** Keybindings
+https://github.com/noctuid/general.el/
+Keybindings are defined using general.el
+*** Leader Menu
+Spacemacs-like leader menu using space as a prefix.
+#+BEGIN_SRC emacs-lisp
+  (use-package general
+    :config
+    (general-evil-setup t)
+    (general-create-definer nri/leader
+      :keymaps 'override
+      :states '(normal visual motion emacs)
+      :prefix "SPC")
+    (general-create-definer nri/major-leader
+      :wrapping nri/leader
+      :prefix "SPC m")
+    ;; buffers
+    (nri/leader
+      :infix "b"
+      "" '(:ignore t :wk "buffers")
+      "b" '(counsel-ibuffer :wk "list")
+      "q" '(kill-this-buffer :wk "kill"))
+
+    (nri/leader
+      :infix "f"
+      "" '(:ignore t :wk "file")
+      "f" '(find-file :wk "find")
+      "g" '(counsel-git :wk "git")
+      "s" '(save-buffer :wk "save")
+      "t" '(projectile-find-test-file :wk "test file")
+      "o" '(projectile-find-other-file :wk "other file"))
+
+    (nri/leader
+      :infix "F"
+      "" '(:ignore t :wk "Frames")
+      "f" '(make-frame :wk "new"))
+
+    (nri/leader
+      :infix "g"
+      "" '(:ignore t :wk "git")
+      "s" '(magit-status :wk "status"))
+
+    ;; window management
+    (nri/leader
+      :infix "w"
+      "" '(:ignore t :wk "window")
+      "h" '(evil-window-left :wk "left")
+      "H" '(evil-window-move-far-left :wk "move left")
+      "j" '(evil-window-down :wk "down")
+      "J" '(evil-window-move-very-bottom :wk "move down")
+      "k" '(evil-window-up :wk "up")
+      "K" '(evil-window-move-very-top :wk "move up")
+      "l" '(evil-window-right :wk "right")
+      "L" '(evil-window-move-far-right :wk "move right")
+      "v" '(evil-window-vsplit :wk "split vertically")
+      "w" '(evil-window-next :wk "next")
+      "q" '(evil-window-delete :wk "quit")
+      "=" '(balance-windows :wk "quit"))
+
+    (nri/leader
+      "TAB" '(mode-line-other-buffer :wk "previous")
+      "RET" '(vterm-toggle :wk "terminal")
+
+      "'" '(vterm-toggle :wk "terminal")
+
+
+      "/" '(swiper :wk "search")
+
+      "a" '(:ignore t :wk "Applications")
+
+      "aa" '(:ignore t :wk "Anki")
+      "aai" '(anki-editor-insert-note :wk "Insert Note")
+      "aap" '(anki-editor-push-notes :wk "Push Notes")
+
+      "af" '(:ignore t :wk "Fun")
+      "afz" '(zone :wk "Zone")
+
+      "e" '(:ignore t :wk "emacs")
+
+      "ec" '(list (find-file "~/.config/emacs/config.org") :wk "config")
+
+      "ed" '(:ignore t :wk "describe")
+      "edv" '(describe-variable :wk "variable")
+      "edf" '(describe-function :wk "function")
+      "edp" '(describe-package :wk "package")
+      "edk" '(describe-key :wk "key")
+      "edm" '(describe-minor-mode :wk "minor mode")
+      "edM" '(describe-mode :wk "all modes")
+
+      "ee" '(:ignore t :wk "eval")
+      "eee" '(eval-last-sexp :wk "expression")
+      "eer" '(eval-region :wk "region")
+
+      "et" '(counsel-load-theme :w-k "theme")
+
+
+
+
+      "i" '(:ignore t :wk "insert")
+      "ic" '(:ignore t :wk "char")
+      "icc" '(insert-char :wk "char")
+      "ich" '(quoted-insert :wk "char")
+
+
+      "P" '(:ignore t :wk "packages")
+      "Pf" '(straight-freeze-versions :wk "freeze packages")
+
+      "r" '(:ignore t :wk "refactor")
+      "rr" '(lsp-rename :wk "rename")
+      "s" '(:ignore t :wk "search")
+      "ss" '(counsel-google t :wk "search")
+      "S" '(:ignore t :wk "snippets")
+      "Ss" '(yas-new-snippet :wk "new snippet")
+      "Si" '(yas-insert-snippet :wk "insert")
+
+      )
+    )
+#+END_SRC
+
+*** Which-Key
+https://github.com/justbur/emacs-which-key
+Which-key shows all available keybindings when pressing keys
+#+BEGIN_SRC emacs-lisp
+  (use-package which-key
+    :demand t
+    :config
+    (setq which-key-allow-evil-operators t)
+    ;; buggy: makes it not read the next character in evil mode
+    ;; (setq which-key-show-operator-state-maps t)
+    (setq which-key-separator " → ")
+    (setq which-key-prefix-prefix "+")
+    (setq which-key-idle-delay 0.3)
+    (which-key-mode 1))
+#+END_SRC
+** Appearance
+*** Font
+#+BEGIN_SRC emacs-lisp
+  (setq nri/font "Roboto Mono")
+  (setq nri/font-size 14)
+  (setq nri/font-size-hidpi 22)
+
+  ;; font
+  (set-frame-font nri/font nil t)
+  ;; change font size in hook, fixes size reset after changing themes
+  ;; (set-face-attribute 'default nil :height (* 10 (if (equal "merkur" (system-name)) nri/font-size-hidpi nri/font-size)))
+
+  (defvar after-load-theme-hook nil
+    "Hook run after a color theme is loaded using `load-theme'.")
+  (defadvice load-theme (after run-after-load-theme-hook activate)
+    "Run `after-load-theme-hook'."
+    (run-hooks 'after-load-theme-hook))
+  (add-hook 'after-load-theme-hook
+            (lambda () (set-face-attribute 'default nil :height (* 10 (if (equal "merkur" (system-name)) nri/font-size-hidpi nri/font-size)))))
+#+END_SRC
+*** Theme
+**** Spacemacs Theme
+#+BEGIN_SRC emacs-lisp
+  (use-package spacemacs-theme
+    :defer t
+    :init
+    (load-theme 'spacemacs-dark t))
+#+END_SRC
+**** Doom Themes
+#+BEGIN_SRC emacs-lisp
+  (use-package doom-themes
+    :config
+    ;; Global settings (defaults)
+    (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
+          doom-themes-enable-italic t) ; if nil, italics is universally disabled
+    ;; (load-theme 'doom-dracula t)
+
+    ;; Enable flashing mode-line on errors
+    (doom-themes-visual-bell-config)
+
+    ;; or for treemacs users
+    ;; (setq doom-themes-treemacs-theme "doom-colors") ; use the colorful treemacs theme
+    ;; (doom-themes-treemacs-config)
+
+    ;; Corrects (and improves) org-mode's native fontification.
+    ;; (doom-themes-org-config))
+    )
+#+END_SRC
+*** Mode line
+**** Spaceline
+Spaceline
+[[https://github.com/TheBB/spaceline]]
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package spaceline
+  ;;   :config
+  ;;   (spaceline-spacemacs-theme)
+  ;;   (setq spaceline-highlight-face-func 'spaceline-highlight-face-evil-state)
+  ;;   (setq spaceline-minor-modes-p nil))
+#+END_SRC
+
+**** Doom Line
+#+BEGIN_SRC emacs-lisp
+  (use-package doom-modeline
+    :config
+    (set-face-attribute 'doom-modeline-buffer-modified nil
+                        :inherit 'doom-modeline-buffer-path)
+    ;; (doom-modeline-def-modeline 'minimal
+    ;;   '(bar matches " " buffer-info)
+    ;;   '(media-info major-mode))
+    ;; (doom-modeline-set-modeline 'minimal t)
+    ;; (doom-modeline-def-modeline 'main
+    ;;   '(bar workspace-name window-number modals matches buffer-info remote-host parrot selection-info)
+    ;;   '(objed-state misc-info persp-name battery grip irc mu4e gnus github debug repl lsp minor-modes input-method indent-info major-mode process vcs checker))
+    (setq doom-modeline-project-detection 'project)
+    (setq doom-modeline-buffer-encoding nil)
+    (setq doom-modeline-enable-word-count nil)
+    (setq doom-modeline-buffer-modification-icon nil)
+    (setq doom-modeline-minor-modes nil)
+    (setq doom-modeline-buffer-file-name-style 'relative-from-project)
+
+    (doom-modeline-mode 1)
+    :init
+    )
+  ;; (setq doom-modeline-buffer-file-name-style 'relative-to-project)
+#+END_SRC
+*** Misc
+**** relative line numbers
+#+BEGIN_SRC emacs-lisp
+  (setq display-line-numbers-type 'relative)
+  (setq display-line-numbers-grow-only t)
+  (setq display-line-numbers-width-start t)
+  (global-display-line-numbers-mode t)
+#+END_SRC
+**** visual stuff
+#+BEGIN_SRC emacs-lisp
+  (setq line-spacing 0.1)
+  (setq left-margin-width 2)
+  (setq right-margin-width 2)
+
+  ;; Turn off the blinking cursor
+  (blink-cursor-mode -1)
+#+END_SRC
+**** Show matching parens
+#+BEGIN_SRC emacs-lisp
+  (setq show-paren-delay 0)
+  (show-paren-mode 1)
+#+END_SRC
+**** visualize color codes
+#+BEGIN_SRC emacs-lisp
+  (use-package rainbow-mode
+    :config
+    (rainbow-mode t))
+#+END_SRC
+
+**** Symbols
+#+BEGIN_SRC emacs-lisp
+  (setq prettify-symbols-unprettify-at-point 'right-edge)
+  (setq-default prettify-symbols-alist '(
+                                         ("#+BEGIN_SRC" . "")
+                                         ("#+END_SRC" . "")
+                                         ;; ("#+BEGIN_SRC"     . "")
+                                         ;; ("#+END_SRC"       . "")
+                                         ;; ("#+BEGIN_SRC python" . "")
+                                         ;; ("#+BEGIN_SRC emacs-lisp" . "")
+                                         ))
+  (global-prettify-symbols-mode t)
+#+END_SRC
+#+BEGIN_SRC bash
+
+#+END_SRC
+
+**** Org Symbols
+#+BEGIN_SRC emacs-lisp
+  ;; (with-eval-after-load 'org
+  ;;   (defvar-local rasmus/org-at-src-begin -1
+  ;;     "Variable that holds whether last position was a ")
+
+  ;;   (defvar rasmus/ob-header-symbol ?☰
+  ;;     "Symbol used for babel headers")
+
+  ;;   (defun rasmus/org-prettify-src--update ()
+  ;;     (let ((case-fold-search t)
+  ;;           (re "^[ \t]*#\\+begin_src[ \t]+[^ \f\t\n\r\v]+[ \t]*")
+  ;;           found)
+  ;;       (save-excursion
+  ;;         (goto-char (point-min))
+  ;;         (while (re-search-forward re nil t)
+  ;;           (goto-char (match-end 0))
+  ;;           (let ((args (org-trim
+  ;;                        (buffer-substring-no-properties (point)
+  ;;                                                        (line-end-position)))))
+  ;;             (when (org-string-nw-p args)
+  ;;               (let ((new-cell (cons args rasmus/ob-header-symbol)))
+  ;;                 (cl-pushnew new-cell prettify-symbols-alist :test #'equal)
+  ;;                 (cl-pushnew new-cell found :test #'equal)))))
+  ;;         (setq prettify-symbols-alist
+  ;;               (cl-set-difference prettify-symbols-alist
+  ;;                                  (cl-set-difference
+  ;;                                   (cl-remove-if-not
+  ;;                                    (lambda (elm)
+  ;;                                      (eq (cdr elm) rasmus/ob-header-symbol))
+  ;;                                    prettify-symbols-alist)
+  ;;                                   found :test #'equal)))
+  ;;         ;; Clean up old font-lock-keywords.
+  ;;         (font-lock-remove-keywords nil prettify-symbols--keywords)
+  ;;         (setq prettify-symbols--keywords (prettify-symbols--make-keywords))
+  ;;         (font-lock-add-keywords nil prettify-symbols--keywords)
+  ;;         (while (re-search-forward re nil t)
+  ;;           (font-lock-flush (line-beginning-position) (line-end-position))))))
+
+  ;;   (defun rasmus/org-prettify-src ()
+  ;;     "Hide src options via `prettify-symbols-mode'.
+
+  ;;   `prettify-symbols-mode' is used because it has uncollpasing. It's
+  ;;   may not be efficient."
+  ;;     (let* ((case-fold-search t)
+  ;;            (at-src-block (save-excursion
+  ;;                            (beginning-of-line)
+  ;;                            (looking-at "^[ \t]*#\\+begin_src[ \t]+[^ \f\t\n\r\v]+[ \t]*"))))
+  ;;       ;; Test if we moved out of a block.
+  ;;       (when (or (and rasmus/org-at-src-begin
+  ;;                      (not at-src-block))
+  ;;                 ;; File was just opened.
+  ;;                 (eq rasmus/org-at-src-begin -1))
+  ;;         (rasmus/org-prettify-src--update))
+  ;;       ;; Remove composition if at line; doesn't work properly.
+  ;;       ;; (when at-src-block
+  ;;       ;;   (with-silent-modifications
+  ;;       ;;     (remove-text-properties (match-end 0)
+  ;;       ;;                             (1+ (line-end-position))
+  ;;       ;;                             '(composition))))
+  ;;       (setq rasmus/org-at-src-begin at-src-block)))
+
+  ;;   (defun rasmus/org-prettify-symbols ()
+  ;;     (mapc (apply-partially 'add-to-list 'prettify-symbols-alist)
+  ;;           (cl-reduce 'append
+  ;;                      (mapcar (lambda (x) (list x (cons (upcase (car x)) (cdr x))))
+  ;;                              `(("#+begin_src" . "hello") ;; ➤ 🖝 ➟ ➤ ✎
+  ;;                                ("#+end_src"   . ?c) ;; ⏹
+  ;;                                ("#+header:" . ,rasmus/ob-header-symbol)
+  ;;                                ("#+begin_quote" . ?»)
+  ;;                                ("#+end_quote" . ?«)))))
+  ;;     (turn-on-prettify-symbols-mode)
+  ;;     (add-hook 'post-command-hook 'rasmus/org-prettify-src t t))
+  ;;   (add-hook 'org-mode-hook #'rasmus/org-prettify-symbols))
+#+END_SRC
+
+*** Scrolling
+#+BEGIN_SRC emacs-lisp
+  (setq scroll-step 1
+        scroll-conservatively 10000
+        scroll-margin 3)
+#+END_SRC
+*** Highlight indendation
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package highlight-indent-guides
+  ;; hook (prog-mode . highlight-indent-guides))
+#+END_SRC
+
+*** Highlight surrounding parentheses
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package highlight-parentheses
+  ;;   :hook (prog-mode . highlight-parentheses-mode))
+#+END_SRC
+
+*** Highlight current line
+#+BEGIN_SRC emacs-lisp
+  (global-hl-line-mode t)
+#+END_SRC
+** Incremental Completion Framework
+*** Ivy
+#+BEGIN_SRC emacs-lisp
+  (use-package ivy
+    :config
+    (setq ivy-count-format "")
+    (setq ivy-use-virtual-buffers t))
+  (use-package swiper)
+  (use-package counsel
+    :general
+    (nri/leader
+      :infix "f"
+      "r" '(counsel-buffer-or-recentf :wk "recent"))
+    (nri/leader
+      "SPC" 'counsel-M-x)
+    (:keymaps 'ivy-minibuffer-map
+              "<escape>" 'minibuffer-keyboard-quit
+              "C-j" 'ivy-next-line
+              "C-w" 'backward-kill-word)
+    (:keymaps 'swiper-map
+              "<escape>" 'minibuffer-keyboard-quit)
+    :config
+    (ivy-mode 1)
+    (counsel-mode)
+    (setq ivy-initial-inputs-alist nil)
+    (setq ivy-re-builders-alist
+          '((swiper . ivy--regex-plus)(t . ivy--regex-fuzzy))) ;; Fuzzy for everything TODO: not for swiper etc.
+    ;; (setq ivy-initial-inputs-alist nil) ;; no ^ at the start
+    (define-key ivy-minibuffer-map (kbd "C-k") 'ivy-previous-line))
+#+END_SRC
+**** Ivy Rich
+More friendly interface
+#+BEGIN_SRC emacs-lisp
+  (use-package ivy-rich
+    :preface (defun ivy-rich-switch-buffer-icon (candidate) (with-current-buffer (get-buffer candidate) (all-the-icons-icon-for-mode major-mode)))
+    :init
+    (setq ivy-rich-display-transformers-list ; max column width sum = (ivy-poframe-width - 1)
+          '(ivy-switch-buffer (:columns ((ivy-rich-switch-buffer-icon (:width 2)) (ivy-rich-candidate (:width 35)) (ivy-rich-switch-buffer-project (:width 15 :face success)) (ivy-rich-switch-buffer-major-mode (:width 13 :face warning))) :predicate #'(lambda (cand) (get-buffer cand)))
+                              counsel-M-x (:columns ((counsel-M-x-transformer (:width 35)) (ivy-rich-counsel-function-docstring (:width 34 :face font-lock-doc-face))))
+                              counsel-describe-function (:columns ((counsel-describe-function-transformer (:width 35)) (ivy-rich-counsel-function-docstring (:width 34 :face font-lock-doc-face))))
+                              counsel-describe-variable (:columns ((counsel-describe-variable-transformer (:width 35)) (ivy-rich-counsel-variable-docstring (:width 34 :face font-lock-doc-face))))
+                              package-install (:columns ((ivy-rich-candidate (:width 25)) (ivy-rich-package-version (:width 12 :face font-lock-comment-face)) (ivy-rich-package-archive-summary (:width 7 :face font-lock-builtin-face)) (ivy-rich-package-install-summary (:width 23 :face font-lock-doc-face))))))
+    :config (ivy-rich-mode +1) (setcdr (assq t ivy-format-functions-alist) #'ivy-format-function-line)) 
+#+END_SRC
+
+**** LSP Ivy
+#+BEGIN_SRC emacs-lisp
+  (use-package lsp-ivy)
+#+END_SRC
+** Editing
+*** Evil
+Vim inside Emacs
+**** Evil Mode
+https://github.com/emacs-evil/evil
+#+BEGIN_SRC emacs-lisp
+  (use-package evil
+    :demand t
+    :init
+    (setq evil-undo-system 'undo-redo)
+    (setq evil-want-C-u-scroll t)
+    (setq evil-want-keybinding nil)
+    :config
+    (evil-mode 1))
+#+END_SRC
+**** Evil Surround
+https://github.com/emacs-evil/evil-surround
+#+BEGIN_SRC emacs-lisp
+  (use-package evil-surround
+    :after evil
+    :config
+    ;;(push '(?\\ . evil-surround-read-tag) evil-surround-pairs-alist)
+    (global-evil-surround-mode 1))
+#+END_SRC
+**** Evil Collection
+https://github.com/emacs-evil/evil-collection
+#+BEGIN_SRC emacs-lisp
+  (use-package evil-collection
+    :after evil
+    :config
+    (setq evil-collection-outline-bind-tab-p nil)
+    (setq evil-collection-company-use-tng nil)
+    (evil-collection-init))
+#+END_SRC
+**** Evil Nerd Commenter
+https://github.com/redguardtoo/evil-nerd-commenter
+#+BEGIN_SRC emacs-lisp
+  (use-package evil-nerd-commenter
+    :general
+    (:keymaps 'override
+              :states '(normal visual)
+              "gc" 'evilnc-comment-operator))
+#+END_SRC
+**** evil-easymotion
+https://github.com/PythonNut/evil-easymotion
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package evil-easymotion
+  ;;   :config
+  ;;   (evilem-default-keybindings "SPC"))
+#+END_SRC
+**** evil-numbers
+#+BEGIN_SRC emacs-lisp
+  (use-package evil-numbers
+    :straight
+    (evil-numbers :type git :host github :repo "janpath/evil-numbers")
+    :config
+    (setq evil-numbers/padDefault t)
+    :general
+    (:keymaps 'override
+              :states '(normal visual motion emacs)
+              "g C-a" 'evil-numbers/inc-at-pt-incremental
+              "g C-x" 'evil-numbers/dec-at-pt-incremental
+              "C-a" 'evil-numbers/inc-at-pt
+              "C-x" 'evil-numbers/dec-at-pt))
+#+END_SRC
+**** evil-goggles
+#+BEGIN_SRC emacs-lisp
+  (use-package evil-goggles
+    :config
+    (setq evil-goggles-duration 0.08)
+    (evil-goggles-use-diff-faces)
+    (evil-goggles-mode))
+#+END_SRC
+**** evil-traces
+#+BEGIN_SRC emacs-lisp
+  (use-package evil-traces
+    :config
+    (evil-traces-use-diff-faces) ; if you want to use diff's faces
+    (evil-traces-mode))
+#+END_SRC
+
+*** Parenthesis
+Automatically insert pair of parens
+#+BEGIN_SRC emacs-lisp
+  (use-package smartparens
+    :config
+    (smartparens-global-mode 1))
+#+END_SRC
+*** Anzu
+Search Improvements
+[[https://github.com/syohex/emacs-anzu]]
+#+BEGIN_SRC emacs-lisp
+  (use-package anzu
+    :config
+    (setq anzu-cons-mode-line-p nil)
+    (global-anzu-mode))
+#+END_SRC
+*** Autocompletion
+**** Company Mode
+#+BEGIN_SRC emacs-lisp
+  (use-package company
+    :config
+    ;; set default `company-backends'
+    (setq company-backends
+          '((company-files          ; files & directory
+             ;; company-keywords       ; keywords
+             company-capf
+             ;; company-yasnippet
+             )
+            ;; (company-abbrev company-dabbrev)
+            ))
+    (add-to-list 'company-frontends 'company-tng-frontend)
+    (setq company-minimum-prefix-length 1
+          company-idle-delay 0.0
+          company-tooltip-limit 14
+          company-dabbrev-downcase nil
+          company-dabbrev-ignore-case nil
+          company-dabbrev-code-other-buffers t
+          company-tooltip-align-annotations t
+          company-require-match 'never
+          company-frontends
+          '(company-pseudo-tooltip-frontend
+            company-echo-metadata-frontend))
+    :general
+    (:keymaps 'company-active-map
+              :states '(insert)
+              "<return>" #'company-complete-selection
+              "RET" #'company-complete-selection
+              ;; "TAB"       #'company-select-next
+              "S-TAB"   #'company-select-previous))
+#+END_SRC
+**** Company Mode Icons
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package company-box
+  ;; :hook (company-mode . company-box-mode))
+#+END_SRC
+
+**** Company Mode Formatting
+#+BEGIN_SRC emacs-lisp
+  ;; auto completion
+  ;; (custom-set-faces
+  ;; '(company-tooltip-common
+  ;;  ((t (:inherit company-tooltip :weight bold :underline nil))))
+  ;; '(company-tooltip-common-selection
+  ;;  ((t (:inherit company-tooltip-selection :weight bold :underline nil)))))
+  ;; (setq company-tooltip-limit 5
+  ;; company-tooltip-align-annotations t
+  ;; company-go-show-annotation t
+  ;; company-tooltip-minimum 5)
+#+END_SRC
+
+*** EditorConfig
+#+BEGIN_SRC emacs-lisp
+  (use-package editorconfig
+    :config
+    (editorconfig-mode 1))
+#+END_SRC
+*** Syntax Checking
+Automatically check syntax using Flycheck.
+https://github.com/flycheck/flycheck/
+#+BEGIN_SRC emacs-lisp
+  (use-package flycheck
+    :config
+    (setq flycheck-indication-mode 'left-margin) ;; use margin instead of fringe -> better scaling
+    (global-flycheck-mode))
+#+END_SRC
+*** Snippets
+**** Yasnippet
+#+BEGIN_SRC emacs-lisp
+  (use-package yasnippet
+    :init
+    ;; (setq yas-snippet-dirs (list (expand-file-name "snippets/" user-emacs-directory)))
+    :config
+    (yas-global-mode 1)) ;; enable yasnippet everywhere
+#+END_SRC
+
+*** Auto Save
+TODO: Trigger, when moving around
+#+BEGIN_SRC emacs-lisp
+  ;; ;; quiet auto save
+  ;; (setq save-silently t)
+  ;; (setq auto-save-visited-interval 1.0)
+  ;; (auto-save-visited-mode t)
+  ;; ;; in insert state -> 5 seconds
+  ;; (add-hook 'evil-insert-state-entry-hook
+  ;;           (lambda () 
+  ;;             (setq auto-save-visited-interval 5.0)
+  ;;             (auto-save-visited-mode 1))) ;; mode has to be reloaded
+  ;; ;; else 1 second
+  ;; (add-hook 'evil-insert-state-exit-hook
+  ;;           (lambda ()
+  ;;             (setq auto-save-visited-interval 1.0)
+  ;;             (auto-save-visited-mode 1)))
+#+END_SRC
+** Projectile
+Project Management
+#+BEGIN_SRC emacs-lisp
+  (use-package projectile
+    :config
+    ;; default projectile behaviour is to ignore nested makefiles (i.e. makefile beneath git repo -> git repo is root)
+    ;; this makes makefiles the root
+    (add-to-list 'projectile-project-root-files  "Makefile") 
+    (add-to-list 'projectile-project-root-files  "makefile")
+
+    (projectile-register-project-type 'rust-cargo-fixed '("Cargo.toml")
+                                      :project-file "Cargo.toml"
+                                      :compile "cargo build"
+                                      :test "cargo test"
+                                      :test-dir "tests/"
+                                      :src-dir "src/"
+                                      :run "cargo run")
+    (projectile-register-project-type 'Makefile-standard '("Makefile")
+                                      :compile "make"
+                                      :test "make test"
+                                      :run "make run")
+    (projectile-register-project-type 'makefile-standard '("makefile")
+                                      :compile "make"
+                                      :test "make test"
+                                      :run "make run")
+    ;; (projectile-register-project-type 'embedded-arm-asm '("Makefile")
+    ;;                                   :compile "make"
+    ;;                                   :test "make test"
+    ;;                                   :run "make run")
+    ;; (projectile-register-project-type 'embedded-arm-hal-make '("Makefile")
+    ;;                                   :compile "make"
+    ;;                                   :test "make test"
+    ;;                                   :run "make run")
+    (projectile-register-project-type 'platformio '("platformio.ini")
+                                      :compile "platformio run"
+                                      :test "platformio test"
+                                      :run "platformio run -t upload && platformio device monitor")
+    (setq projectile-project-search-path '(
+                                           "~/Projects/"
+                                           ;; "~/work/"
+                                           ))
+    (setq projectile-completion-system 'ivy)
+    ;; fixes directory not found bug
+    (setq projectile-git-submodule-command nil)
+    (projectile-mode t)
+    ;; hotkeys
+    :general
+    (nri/leader
+      :infix "p"
+      "" '(:ignore t :wk "projectile")
+      "p" '(projectile-switch-project :wk "switch")
+      "f" '(projectile-find-file :wk "find file")
+      "r" '(projectile-run-project :wk "run project")
+      "t" '(projectile-test-project :wk "test project")
+      "c" '(projectile-compile-project :wk "compile project")
+      "RET" '(projectile-run-vterm :wk "terminal")))
+#+END_SRC
+** Language Server Protocol
+*** Main
+#+BEGIN_SRC emacs-lisp
+  (use-package lsp-mode
+    :general
+    (nri/major-leader
+      :keymaps 'lsp-mode-map
+      "a" 'lsp-execute-code-action
+      "R" 'lsp-workspace-restart
+      "s" 'lsp-ivy-global-workspace-symbol)
+    (:keymaps 'lsp-mode-map
+              :states '(normal visual)
+              "gd" 'lsp-find-definition
+              "gD" 'lsp-ui-peek-find-references)
+    :config
+    (setq lsp-semantic-tokens-enable t)
+    ;; debug
+    ;; (setq lsp-log-io t)
+    ;; (setq lsp-use-plists t)
+    (setq lsp-eldoc-enable-hover nil)
+    (setq lsp-prefer-flymake nil)
+    (setq lsp-prefer-capf t)
+    (setq lsp-auto-guess-root t))
+#+END_SRC
+*** Enhanced UI
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package lsp-ui
+  ;;   :after lsp-mode
+  ;;   :config
+  ;;   ;; (setq lsp-ui-doc-include-signature t)
+  ;;   (setq lsp-ui-flycheck-enable t)
+  ;;   (setq lsp-ui-peek-always-show t)
+  ;;   (lsp-lens-mode)
+  ;;   :general
+  ;;   (:keymaps '(lsp-ui-peek-mode-map)
+  ;;             "C-j" 'lsp-ui-peek--select-next
+  ;;             "C-k" 'lsp-ui-peek--select-prev))
+#+END_SRC
+*** Debug (DAP)
+#+BEGIN_SRC emacs-lisp
+  (use-package dap-mode
+    :after lsp-mode
+    :config
+    (add-hook 'dap-stopped-hook
+              (lambda (arg) (call-interactively #'dap-hydra))))
+#+END_SRC
+*** LSP Origami
+#+BEGIN_SRC emacs-lisp
+  (use-package lsp-origami
+    :hook (lsp . lsp-origami))
+#+END_SRC
+** Languages
+*** Bash
+#+BEGIN_SRC emacs-lisp
+  (use-package sh-script
+    :after lsp-mode
+    :config
+    (dolist (pattern '("\\.zsh\\'"
+                       "zlogin\\'"
+                       "zlogout\\'"
+                       "zpreztorc\\'"
+                       "zprofile\\'"
+                       "zshenv\\'"
+                       "zshrc\\'"))
+      (add-to-list 'auto-mode-alist (cons pattern 'sh-mode)))
+    :hook (sh-mode . lsp))
+#+END_SRC
+*** C/C++
+LSP for C/C++
+#+BEGIN_SRC emacs-lisp
+  (use-package cc-mode
+    :hook ((c-mode . lsp)(c-mode . tree-sitter-hl-mode) (c++-mode . lsp)(c++-mode . tree-sitter-hl-mode))
+    :init
+    (setq lsp-clients-clangd-args
+          '("--suggest-missing-includes"
+            "-cross-file-rename"
+            "--clang-tidy")))
+  ;; (use-package ccls
+  ;;   :config
+  ;;   ;; move cache to /tmp/
+  ;;   (setq ccls-args '("--init={\"cache\": {\"directory\": \"/tmp/ccls-cache\"}}")))
+  ;;    semantic highlighting, TODO
+  ;;    (setq ccls-sem-highlight-method 'overlay))
+#+END_SRC
+*** Cmake
+#+BEGIN_SRC emacs-lisp
+  (use-package cmake-mode
+    :after lsp-mode
+    :hook (cmake-mode . lsp))
+#+END_SRC
+*** Java
+#+BEGIN_SRC emacs-lisp
+  (use-package lsp-java
+    :disabled
+    :after lsp-mode
+    :hook (java-mode . lsp))
+#+END_SRC
+*** Json
+#+BEGIN_SRC emacs-lisp
+  (use-package json-mode
+    :config
+    (setq lsp-json-schemas '((fileMatch . "manifest.json") (url . "https://json.schemastore.org/webextension")))
+    :hook (json-mode . prettier-js-mode) (json-mode . lsp))
+#+END_SRC
+
+*** Markdown
+https://github.com/jrblevin/markdown-mode
+#+BEGIN_SRC emacs-lisp
+  (use-package markdown-mode)
+#+END_SRC
+
+**** Evil Markdown
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package evil-markdown
+  ;;   :straight
+  ;;   (evil-markdown :type git :host github :repo "Somelauw/evil-markdown"))
+#+END_SRC
+*** Org
+**** Org Setup & Keybindings
+#+BEGIN_SRC emacs-lisp
+  (use-package org
+    ;; :hook (org-mode . org-table-auto-align-mode)
+    :general
+    (nri/major-leader
+      :states '(normal visual motion emacs)
+      :keymaps 'org-mode-map
+      "a" 'org-agenda
+      "A" 'org-attach
+      "be" 'org-babel-execute-maybe
+      "e" 'org-export-dispatch
+      "n" 'org-toggle-narrow-to-subtree
+      "o" 'org-open-at-point
+      "s" 'org-edit-special)
+    (nri/major-leader
+      :states '(normal visual motion emacs)
+      :keymaps 'org-src-mode-map
+      "s" 'org-edit-src-exit)
+    (:keymap 'org-mode-map
+             :keymaps 'override
+             "M-h" 'outline-promote
+             "M-j" 'outline-move-subtree-down
+             "M-k" 'outline-move-subtree-up
+             "M-l" 'outline-demote))
+#+END_SRC
+**** Org Agenda
+#+BEGIN_SRC emacs-lisp
+  (setq org-agenda-files (list "~/Cloud/dotfiles/Notizen/Routine.org"
+                               "~/Cloud/dotfiles/Notizen/Notizen.org"
+                               "~/Uni/Uni.org"))
+#+END_SRC
+**** Drag & Drop files to org modes
+#+BEGIN_SRC emacs-lisp
+  (use-package org-download
+    :config
+    (setq org-download-method 'attach))
+#+END_SRC
+**** show entities as UTF8 characters
+#+BEGIN_SRC emacs-lisp
+  ;; (setq org-pretty-entities t)
+#+END_SRC
+**** Inline Images
+#+BEGIN_SRC emacs-lisp
+  (setq org-startup-with-inline-images t)
+#+END_SRC
+**** Do not truncate lines
+
+#+BEGIN_SRC emacs-lisp
+  (setq org-startup-truncated nil)
+#+END_SRC
+
+**** Latex preview
+***** High quality SVG preview
+#+BEGIN_SRC emacs-lisp
+(setq org-preview-latex-default-process 'dvisvgm)
+#+END_SRC
+
+***** Larger Preview
+#+BEGIN_SRC emacs-lisp
+  (setq org-format-latex-options (plist-put org-format-latex-options :scale 1.5))
+#+END_SRC
+***** store Latex preview in cache
+This gets rid of the ltximg directories when using latex fragments
+#+BEGIN_SRC emacs-lisp
+  (setq org-preview-latex-image-directory (expand-file-name "org/" nri/cache))
+#+END_SRC
+***** Start with Latex Fragments
+#+BEGIN_SRC emacs-lisp
+  (setq org-startup-with-latex-preview t)
+#+END_SRC
+
+***** Automatically preview latex fragments
+#+BEGIN_SRC emacs-lisp
+  (use-package org-auto-toggle
+    :straight
+    (org-auto-toggle :type git :host github :repo "nicories/org-auto-toggle")
+    :config
+    (org-auto-toggle-mode))
+#+END_SRC
+**** Never emulate tab
+#+BEGIN_SRC emacs-lisp
+  (setq org-cycle-emulate-tab nil)
+#+END_SRC
+
+**** Bullets
+Nicer looking bullets
+#+BEGIN_SRC emacs-lisp
+  (setq org-hide-leading-stars t)
+  (use-package org-superstar
+    :init
+    (add-hook 'org-mode-hook (lambda () (org-superstar-mode 1))))
+#+END_SRC
+**** Babel
+#+BEGIN_SRC emacs-lisp
+  ;; never ask for confirmation
+  (setq org-confirm-babel-evaluate nil)
+  ;; active Babel languages
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((gnuplot . t)
+     (python . t)
+     (shell . t)
+     (sql . t)
+     (plantuml . t)
+     (C . t)))
+  ;; add additional languages with '((language . t)))
+#+END_SRC
+**** Org Noter
+https://github.com/weirdNox/org-noter
+Annotate PDF files within org-mode
+#+BEGIN_SRC emacs-lisp
+  (use-package org-noter
+    :config
+    (setq org-noter-auto-save-last-location t))
+#+END_SRC
+**** Attach
+#+BEGIN_SRC emacs-lisp
+  (setq org-attach-use-inheritance t)
+#+END_SRC
+#+BEGIN_SRC emacs-lisp
+  ;; make directories relative
+  (setq org-attach-dir-relative t)
+#+END_SRC
+**** Org Mouse Support
+#+BEGIN_SRC emacs-lisp
+  (require 'org-mouse)
+#+END_SRC
+**** Export
+#+BEGIN_SRC emacs-lisp
+  ;; (require 'ox-latex)
+  ;; (add-to-list 'org-latex-packages-alist '("" "minted"))
+  ;; (setq org-latex-listings 'minted)
+  ;; (setq org-latex-pdf-process
+  ;;       '("pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
+  ;;         "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
+  ;;         "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"))
+#+END_SRC
+#+BEGIN_SRC emacs-lisp
+  (use-package htmlize)
+#+END_SRC
+
+***** No HTML Validate link
+#+BEGIN_SRC emacs-lisp
+  (setq org-html-validation-link nil)
+#+END_SRC
+
+***** Pandoc
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package ox-pandoc)
+#+END_SRC
+
+**** Evil Org
+#+BEGIN_SRC emacs-lisp
+  (use-package evil-org
+    :after org
+    :config
+    (add-hook 'org-mode-hook 'evil-org-mode)
+    (add-hook 'evil-org-mode-hook
+              (lambda ()
+                (evil-org-set-key-theme)))
+    (require 'evil-org-agenda)
+    (evil-org-agenda-set-keys))
+#+END_SRC
+**** Auto align tables
+https://www.reddit.com/r/emacs/comments/fosdi2/orgtableautoalignmode_minor_mode_for_auto/
+#+BEGIN_SRC emacs-lisp
+  (require 'subr-x)
+
+  (setq org-table-auto-align-in-progress nil)
+
+  (defun org-table-auto-align (begin end length)
+    (save-match-data
+      (unless (or org-table-auto-align-in-progress
+                  (not (org-at-table-p))
+                  (and (eq this-command 'org-self-insert-command)
+                       (member (this-command-keys) '(" " "+" "|" "-"))))
+        ;; uses zero-idle timer so the buffer content is settled after
+        ;; the change, the cursor is moved, so we know what state we
+        ;; have to restore after auto align
+        (run-with-idle-timer
+         0 nil
+         (lambda ()
+           (if (looking-back "| *\\([^|]+\\)")
+               (let ((pos (string-trim-right (match-string 1))))
+                 (setq org-table-auto-align-in-progress t)
+                 (unwind-protect
+                     (progn
+                       (org-table-align)
+                       (search-forward pos nil t))
+                   (setq org-table-auto-align-in-progress nil)))))))))
+
+
+  (define-minor-mode org-table-auto-align-mode
+    "A mode for aligning Org mode tables automatically as you type."
+    :lighter " OrgTblAA"
+    (if org-table-auto-align-mode
+        (add-hook 'after-change-functions #'org-table-auto-align t t)
+      (remove-hook 'after-change-functions #'org-table-auto-align t)))
+
+#+END_SRC
+**** Source Blocks
+#+BEGIN_SRC emacs-lisp
+  (setq org-src-fontify-natively t)
+#+END_SRC
+
+*** Plantuml
+#+BEGIN_SRC emacs-lisp
+  (use-package plantuml-mode
+    ;; Enable plantuml-mode for PlantUML files
+    :mode ("\\.plantuml\\'" "\\.puml\\'")
+    :after flycheck
+    ;; :hook plantuml-mode
+    :config
+    (plantuml-enable-debug)
+
+    ;; flycheck fixes
+    (flycheck-define-checker plantuml
+      "A checker using plantuml.
+        See `http://plantuml.com"
+      :command ("plantuml" "-syntax")
+      :standard-input t
+      :error-patterns ((error line-start "ERROR" "\n" line "\n" (message) line-end))
+      :modes plantuml-mode)
+
+    (add-to-list 'flycheck-checkers 'plantuml)
+
+    ;; for org mode
+    (setq org-plantuml-jar-path "/usr/share/java/plantuml/plantuml.jar")
+
+    ;; (setq plantuml-jar-path "/usr/share/java/plantuml/plantuml.jar")
+    (setq plantuml-executable-path "/usr/bin/plantuml")
+    (setq plantuml-default-exec-mode 'executable))
+#+END_SRC
+*** Python
+#+BEGIN_SRC emacs-lisp
+  (use-package python)
+
+  (use-package lsp-python-ms
+    :after python
+    :ensure t
+    :hook (python-mode . (lambda ()
+                           (require 'lsp-python-ms)
+                           (lsp)))
+    :init (setq lsp-python-ms-auto-install-server t))
+  ;; (use-package lsp-python-ms
+  ;;   :hook (python-mode . (lambda ()
+  ;;                          (require 'lsp-python-ms)
+  ;;                          (lsp))))  ; or lsp-deferred
+#+END_SRC
+*** Rust
+**** Rust Mode
+https://github.com/rust-lang/rust-mode
+#+BEGIN_SRC emacs-lisp
+  (use-package rust-mode
+    :init
+    (setq lsp-rust-analyzer-server-display-inlay-hints t)
+    (setq lsp-rust-analyzer-display-chaining-hints t)
+    (setq lsp-rust-analyzer-display-parameter-hints t)
+    (setq lsp-rust-server 'rust-analyzer)
+    :hook
+    (
+     (rust-mode . lsp)
+     ;; (rust-mode . tree-sitter-hl-mode)
+     )
+    :config
+    (setq rust-format-on-save t)
+    :general
+    (nri/major-leader
+      :states '(normal visual motion emacs)
+      :keymaps 'lsp-mode-map
+      "h" 'lsp-inlay-hints-mode)
+    (:keymaps 'rust-mode-map
+              :states '(normal visual motion emacs)
+              "J" 'lsp-rust-analyzer-join-lines))
+#+END_SRC
+*** Yaml
+#+BEGIN_SRC emacs-lisp
+  (use-package yaml-mode
+    :hook (yaml-mode . lsp))
+#+END_SRC
+** Applications
+*** Anki
+Edit Anki Cards in Org-Mode
+https://github.com/louietan/anki-editor
+TODO: evalute the new fork https://github.com/anki-editor/anki-editor
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package anki-editor
+  ;;   :custom
+  ;;   (anki-editor-latex-style 'mathjax)
+  ;;   :straight
+  ;;   (anki-editor
+  ;;    ;; :no-native-compile t
+  ;;    :type git :branch "develop" :host github :repo "nicories/anki-editor")
+  ;;   :init
+  ;;   ;; (setq anki-editor-latex-style 'math-jax) ;; use mathjax syntax "\(\)" instead of latex
+  ;;   :config
+  ;;   (push '("Basic (and reversed card)" . ("Front" . "Back")) anki-editor-quick-field-mapping)
+  ;;   ;; fix "Empty Reply" Bug
+  ;;   ;; TODO: still necessary?
+  ;;   (advice-add 'anki-editor-push-notes :before #'(lambda (&opt) (global-auto-revert-mode 0)))
+  ;;   (advice-add 'anki-editor-push-notes :after #'(lambda (&opt) (global-auto-revert-mode 1))))
+#+END_SRC
+*** ediff
+#+BEGIN_SRC emacs-lisp
+  (use-package ediff
+    :config
+    (setq ediff-window-setup-function 'ediff-setup-windows-plain) ;; no separate control panel
+    (setq ediff-split-window-function 'split-window-horizontally)
+    (setq ediff-merge-split-window-function 'split-window-horizontally))
+#+END_SRC
+*** Epub Viewer
+#+BEGIN_SRC emacs-lisp
+  (use-package nov
+    :mode ("\\.epub\\'" . nov-mode))
+#+END_SRC
+*** PDF Viewer
+Display PDF Files inside Emacs
+https://github.com/politza/pdf-tools
+#+BEGIN_SRC emacs-lisp
+  (use-package pdf-tools
+    ;; no line numbers in pdf
+    :hook (pdf-view-mode . (lambda () (display-line-numbers-mode 0)))
+    :config
+    (setq-default pdf-view-display-size 'fit-page)
+    ;; high dpi support
+    (setq pdf-view-use-scaling t
+          pdf-view-use-imagemagick nil)
+
+    (pdf-tools-install))
+#+END_SRC
+*** Terminal
+**** Vterm
+#+BEGIN_SRC emacs-lisp
+  (use-package vterm
+    :config
+    ;; always start in insert mode
+    (add-hook 'vterm-mode-hook (lambda () (display-line-numbers-mode -1)))
+    (add-hook 'vterm-toggle-show-hook 'evil-insert-state))
+#+END_SRC
+***** Vterm Toggle
+#+BEGIN_SRC emacs-lisp
+  (use-package vterm-toggle
+    :config
+    (setq vterm-toggle-fullscreen-p nil)
+    (add-to-list 'display-buffer-alist
+                 '((lambda(bufname _) (with-current-buffer bufname (equal major-mode 'vterm-mode)))
+                   (display-buffer-reuse-window display-buffer-at-bottom)
+                   ;; (side . right)
+                   (dedicated . t) ;dedicated is supported in emacs27
+                   (reusable-frames . visible)
+                   (window-height . 0.3))))
+#+END_SRC
+**** Clickable URLs
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'term-mode-hook
+            (lambda ()
+              (goto-address-mode)))
+#+END_SRC
+*** Git
+**** Magit
+https://github.com/magit/magit
+#+BEGIN_SRC emacs-lisp
+  (use-package magit)
+#+END_SRC
+**** Start commit message in insert mode
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'git-commit-mode-hook 'evil-insert-state)
+#+END_SRC
+
+**** Show git diff in Buffer
+#+BEGIN_SRC emacs-lisp
+  (use-package diff-hl
+    :config
+    (diff-hl-flydiff-mode t) ;; diff on the fly
+    (diff-hl-margin-mode t) ;; diff on the fly
+    (global-diff-hl-mode t))
+#+END_SRC
+**** Git Files
+Major Mode for gitconfig, gitignore, git-attributes
+#+BEGIN_SRC emacs-lisp
+  (use-package git-modes
+    :config
+    (add-to-list 'auto-mode-alist
+                 (cons "/.dockerignore\\'" 'gitignore-mode)))
+#+END_SRC
+
+** Misc
+TODO: Make async
+#+BEGIN_SRC emacs-lisp
+  (defun nri/bear ()
+    (let ((default-directory (lsp-workspace-root)))(shell-command-to-string "make clean; bear make")))
+#+END_SRC
+*** Transient
+#+BEGIN_SRC emacs-lisp
+  (use-package transient)
+#+END_SRC
+
+** Debugging
+Temporary
+#+BEGIN_SRC emacs-lisp
+  (setq gud-gdb-command-name "arm-none-eabi-gdb -i=mi")
+  (setq gdb-show-main t)
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+  (use-package gdb-mi
+    :straight (:host github :repo "weirdNox/emacs-gdb" :files ("*.el" "*.c" "*.h" "Makefile"))
+    :init
+    (fmakunbound 'gdb)
+    (fmakunbound 'gdb-enable-debug)
+    :config
+    (setq gdb-executable-name "arm-none-eabi-gdb"))
+#+END_SRC
+** New
+*** Tree-Sitter
+#+BEGIN_SRC emacs-lisp
+  (use-package tree-sitter
+    :config
+    (global-tree-sitter-mode)
+    (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode)
+    )
+  (use-package tree-sitter-langs)
+  ;; ;; Core APIs.
+  ;; (straight-register-package
+  ;;  '(tsc :host github
+  ;;        :repo "ubolonton/emacs-tree-sitter"
+  ;;        :files ("core/*.el")))
+  ;; ;; Base framework, syntax highlighting.
+  ;; (straight-use-package
+  ;;  '(tree-sitter :host github
+  ;;                :repo "ubolonton/emacs-tree-sitter"
+  ;;                :files ("lisp/*.el")))
+  ;; ;; Language bundle.
+  ;; (straight-use-package
+  ;;  '(tree-sitter-langs :host github
+  ;;                      :repo "ubolonton/emacs-tree-sitter"
+  ;;                      :files ("langs/*.el" "langs/queries")))
+
+#+END_SRC
+*** Dashboard
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package dashboard
+  ;;   :config
+  ;;   (setq dashboard-items '((recents  . 5)
+  ;;                           (projects . 5)
+  ;;                           (agenda . 10)))
+  ;;   (setq dashboard-center-content t)
+  ;;   (dashboard-setup-startup-hook))
+#+END_SRC
+*** Treemacs
+#+BEGIN_SRC emacs-lisp
+  ;; (use-package treemacs
+  ;;   :config
+  ;;   (with-eval-after-load 'treemacs
+  ;;     (add-to-list 'treemacs-pre-file-insert-predicates #'treemacs-is-file-git-ignored?)))
+  ;; (use-package treemacs-evil)
+  ;; (use-package treemacs-projectile)
+#+END_SRC
+*** Server
+#+BEGIN_SRC emacs-lisp
+  ;; (server-start)
+#+END_SRC
+*** multi-line header
+#+BEGIN_SRC emacs-lisp
+  ;; ;; -------------------------------------------------------------------
+  ;; ;; A proof of concept for a multi header or mode line
+  ;; ;;
+  ;; ;; Multi line header or mode line is made possible by generating an
+  ;; ;; SVG image made of two small lines of text. It is certainly memory
+  ;; ;; hungry but it seems to be fast enough to display line/column while
+  ;; ;; typing text. It can probably be extended in a number of ways.
+  ;; ;;
+  ;; ;; Feel free to modify it for your own needs.
+  ;; ;; -------------------------------------------------------------------
+  ;; (require 'svg)
+
+  ;; (defun tag (line-1 font-size-1 font-family-1 foreground-1
+  ;;             line-2 font-size-2 font-family-2 foreground-2
+  ;;             left)
+  ;;   (let* ((font-size-1   (or font-size-1 14))
+  ;;          (char-width-1  (* font-size-1 0.6))
+  ;;          (char-height-1 (+ font-size-1 0.0))
+  ;;          (width-1       (* char-width-1 20))
+  ;;          (height-1      (+ (* char-height-1 2) 1))
+
+  ;;          (font-size-2   (or font-size-2 14))
+  ;;          (char-width-2  (* font-size-2 0.6))
+  ;;          (char-height-2 (+ font-size-2 0.0))
+  ;;          (width-2       (* char-width-2 20))
+  ;;          (height-2      (+ (* char-height-2 2) 1))
+
+  ;;          (width         (max width-1 width-2))
+  ;;          (height        (max height-1 height-2))
+
+  ;;          (x1 (if left 0 (- width (* char-width-1 (+ (length line-1) .0)))))
+  ;;          (x2 (if left 0 (- width (* char-width-2 (+ (length line-2) .0)))))
+  ;;          (y1 char-height-1)
+  ;;          (y2 (+ (* char-height-2 2) 1))
+  ;;          (svg (svg-create width height)))
+  ;;     (svg-text svg line-1
+  ;;               :font-family font-family-1
+  ;;               :font-size font-size-1 :fill foreground-1
+  ;;               :x x1 :y y1)
+
+  ;;     (svg-text svg line-2
+  ;;               :font-family font-family-2  
+  ;;               :font-size font-size-2 :fill foreground-2
+  ;;               :x x2 :y y2)
+  ;;     svg))
+
+  ;; (define-key mode-line-major-mode-keymap [header-line]
+  ;;   (lookup-key mode-line-major-mode-keymap [mode-line]))
+
+  ;; (defun mode-line-render (left right)
+  ;;   (let* ((available-width (- (window-width) (length left))))
+  ;;     (format (format "%%s %%%ds" available-width) left right)))
+  ;; (setq-default header-line-format
+  ;;      '((:eval
+  ;;        (mode-line-render
+  ;;         (format-mode-line 
+  ;;           (propertize (make-string 20 ?\ )
+  ;;                       'display (svg-image
+  ;;                         (tag (format-mode-line "%m") 12 "Roboto Mono Light" "#00008b"
+  ;;                              (format-mode-line "%b") 14 "Roboto Mono"       "black"
+  ;;                              t) :ascent 100)))
+  ;;         (format-mode-line
+  ;;           (propertize (make-string 18 ?\ )
+  ;;                       'display (svg-image
+  ;;                         (tag (format-mode-line "GNU Emacs 26.3  ") 12 "Roboto Mono Light" "#00008b"
+  ;;                              (format-mode-line "%4l:%2c") 12 "Roboto Mono Light" "#999999"
+  ;;                              nil) :ascent 100)))))))
+
+
+#+END_SRC
+*** Bufler
+#+BEGIN_SRC emacs-lisp
+  (use-package bufler)
+#+END_SRC
+
+** End
+#+BEGIN_SRC emacs-lisp
+  (provide 'init)
+  ;;; init.el ends here
+#+END_SRC
+* Emacs Snippets
+** Anki Basic
+#+begin_src conf :tangle ~/.config/emacs/yasnippet/snippets/org-mode/anki_basic
+  # -*- mode: snippet -*-
+  # name: Anki Basic
+  # key: <ab
+  # --
+  `(progn (move-beginning-of-line nil) nil)`
+  `(make-string (org-current-level) ?*)` $1
+  :PROPERTIES:
+  :ANKI_NOTE_TYPE: Basic
+  :END:
+  $0
+#+end_src
+
+** Anki Reversed
+#+begin_src conf :tangle ~/.config/emacs/yasnippet/snippets/org-mode/anki_reversed
+  # -*- mode: snippet -*-
+  # name: Anki Reversed
+  # key: <ar
+  # --
+  `(progn (move-beginning-of-line nil) nil)`
+  `(make-string (org-current-level) ?*)` $1
+  :PROPERTIES:
+  :ANKI_NOTE_TYPE: Basic (and reversed card)
+  :END:
+  $0
+#+end_src
+
+** Source Generic
+#+begin_src conf :tangle ~/.config/emacs/yasnippet/snippets/org-mode/src_generic
+# -*- mode: snippet -*-
+# name: source code
+# key: <s
+# --
+#+BEGIN_SRC $1
+$0
+#+END_SRC
+#+end_src
+
+** Source Rust
+#+begin_src conf :tangle ~/.config/emacs/yasnippet/snippets/org-mode/src_rust
+  # -*- mode: snippet -*-
+  # name: rust
+  # key: <rust
+  # --
+  ,#+BEGIN_SRC rust
+  $0
+#+END_SRC
+#+end_src
+
+* MPV
+#+BEGIN_SRC conf :tangle ~/.config/mpv/mpv.conf
+  # Hardware Decoding
+  hwdec=auto
+
+  # high quality video output
+  # profile=opengl-hq
+
+  # start in fullscreen
+  fullscreen=yes
+
+  save-position-on-quit
+
+  # audio 
+  # audio-spdif=ac3,dts,dts-hd,eac3,truehd
+  # audio-channels=5.1,stereo
+
+  [extension.mp3]
+  profile=music
+
+  [music]
+  fullscreen=no
+
+#+END_SRC
+** Playlist
+
+https://github.com/mpv-player/mpv/blob/master/TOOLS/lua/autoload.lua
+
+@@html:<details>@@
+
+@@html:<summary>@@Script@@html:</summary>@@
+
+#+BEGIN_SRC lua :tangle ~/.config/mpv/scripts/autoload.lua
+  
+-- https://github.com/mpv-player/mpv/blob/master/TOOLS/lua/autoload.lua
+--
+-- This script automatically loads playlist entries before and after the
+-- the currently played file. It does so by scanning the directory a file is
+-- located in when starting playback. It sorts the directory entries
+-- alphabetically, and adds entries before and after the current file to
+-- the internal playlist. (It stops if the it would add an already existing
+-- playlist entry at the same position - this makes it "stable".)
+-- Add at most 5000 * 2 files when starting a file (before + after).
+MAXENTRIES = 5000
+
+function Set (t)
+    local set = {}
+    for _, v in pairs(t) do set[v] = true end
+    return set
+end
+
+EXTENSIONS = Set {
+    'mkv', 'avi', 'mp4', 'ogv', 'webm', 'rmvb', 'flv', 'wmv', 'mpeg', 'mpg', 'm4v', '3gp',
+    'mp3', 'wav', 'ogv', 'flac', 'm4a', 'wma',
+}
+
+mputils = require 'mp.utils'
+
+function add_files_at(index, files)
+    index = index - 1
+    local oldcount = mp.get_property_number("playlist-count", 1)
+    for i = 1, #files do
+        mp.commandv("loadfile", files[i], "append")
+        mp.commandv("playlist_move", oldcount + i - 1, index + i - 1)
+    end
+end
+
+function get_extension(path)
+    match = string.match(path, "%.([^%.]+)$" )
+    if match == nil then
+        return "nomatch"
+    else
+        return match
+    end
+end
+
+table.filter = function(t, iter)
+    for i = #t, 1, -1 do
+        if not iter(t[i]) then
+            table.remove(t, i)
+        end
+    end
+end
+
+function find_and_add_entries()
+    local path = mp.get_property("path", "")
+    local dir, filename = mputils.split_path(path)
+    if #dir == 0 then
+        return
+    end
+    local pl_count = mp.get_property_number("playlist-count", 1)
+    if (pl_count > 1 and autoload == nil) or
+       (pl_count == 1 and EXTENSIONS[string.lower(get_extension(filename))] == nil) then
+        return
+    else
+        autoload = true
+    end
+
+    local files = mputils.readdir(dir, "files")
+    if files == nil then
+        return
+    end
+    table.filter(files, function (v, k)
+        local ext = get_extension(v)
+        if ext == nil then
+            return false
+        end
+        return EXTENSIONS[string.lower(ext)]
+    end)
+    table.sort(files, function (a, b)
+        local len = string.len(a) - string.len(b)
+        if len ~= 0 then -- case for ordering filename ending with such as X.Y.Z
+            local ext = string.len(get_extension(a)) + 1
+            return string.sub(a, 1, -ext) < string.sub(b, 1, -ext)
+        end
+        return string.lower(a) < string.lower(b)
+    end)
+
+    if dir == "." then
+        dir = ""
+    end
+
+    local pl = mp.get_property_native("playlist", {})
+    local pl_current = mp.get_property_number("playlist-pos", 0) + 1
+    -- Find the current pl entry (dir+"/"+filename) in the sorted dir list
+    local current
+    for i = 1, #files do
+        if files[i] == filename then
+            current = i
+            break
+        end
+    end
+    if current == nil then
+        return
+    end
+
+    local append = {[-1] = {}, [1] = {}}
+    for direction = -1, 1, 2 do -- 2 iterations, with direction = -1 and +1
+        for i = 1, MAXENTRIES do
+            local file = files[current + i * direction]
+            local pl_e = pl[pl_current + i * direction]
+            if file == nil or file[1] == "." then
+                break
+            end
+
+            local filepath = dir .. file
+            if pl_e then
+                -- If there's a playlist entry, and it's the same file, stop.
+                if pl_e.filename == filepath then
+                    break
+                end
+            end
+
+            if direction == -1 then
+                if pl_current == 1 then -- never add additional entries in the middle
+                    mp.msg.info("Prepending " .. file)
+                    table.insert(append[-1], 1, filepath)
+                end
+            else
+                mp.msg.info("Adding " .. file)
+                table.insert(append[1], filepath)
+            end
+        end
+    end
+
+    add_files_at(pl_current + 1, append[1])
+    add_files_at(pl_current, append[-1])
+end
+
+mp.register_event("start-file", find_and_add_entries)
+
+#+END_SRC
+@@html:</details>@@
+
+* Neovim
+Basic Neovim config as backup editor.
+#+BEGIN_SRC conf :tangle ~/.config/nvim/init.vim
+  " Keybindings {{{
+
+  " no selection loss after visual indenting
+  vnoremap > >gv
+  vnoremap < <gv
+
+  " }}}
+
+  " UI {{{
+
+  " syntax highlighting
+  syntax enable
+
+  " folding
+  set foldmethod=marker
+  set foldmarker={{{,}}}
+
+  " Colors and stuff
+
+  " 24 bit colors
+  let $NVIM_TUI_ENABLE_TRUE_COLOR=1
+  " set background=dark
+
+  " set Unix as standard filetype
+  set ffs=unix,dos,mac
+
+  " disable mouse
+  set mouse=
+
+  " no annoying swap files
+  set noswapfile
+
+  " display line numbers
+  set relativenumber number
+
+  " indent based on current file
+  filetype indent plugin on
+  filetype plugin on
+
+  " " }}}
+
+  " Text editing {{{
+
+  " Spaces instead of Tabs
+  set expandtab
+  set smarttab
+
+  " 1 tab == 4 spaces
+  set shiftwidth=4
+  set tabstop=4
+
+  set autoindent "always autoindent
+  set history=1000 "remember more stuff
+  set undolevels=1000
+
+  "highlight entire search word
+  set hlsearch
+
+  " incremental searching
+  set incsearch
+
+  " always show status line
+  set laststatus=2
+
+  " show entered commands
+  set showcmd
+
+  " }}}
+
+#+END_SRC
+
+* Rofi
+Xorg launcher. Somewhat compatible with wayland but needs a replacement.
+
+#+BEGIN_SRC conf :tangle ~/.config/rofi/config
+  rofi.modi: window,drun,run,combi
+
+  rofi.lines: 5
+  rofi.hide-scrollbar: true
+  rofi.bw: 0
+  rofi.separator-style: none
+  rofi.width: 20
+  rofi.show-icons: true
+
+  rofi.color-enabled: true
+  ! State:           'bg',     'fg',     'bgalt',  'hlbg',   'hlfg'
+  !rofi.color-normal: argb:cc000000, argb:FFffffff, argb:dd2c3311, #859900, #fdf6e3
+  !rofi.color-urgent: #fdf6e3,  #dc322f,  #eee8d5,  #dc322f,  #fdf6e3
+  !rofi.color-active: #fdf6e3,  #268bd2,  #eee8d5,  #268bd2,  #fdf6e3
+
+
+#+END_SRC
+
+* Trizen
+#+BEGIN_SRC conf :tangle ~/.config/trizen/trizen.conf
+  
+  #!/usr/bin/perl
+
+  # trizen configuration file
+
+  our $CONFIG = {
+  ask_for_retry              => 1,                               # bool -- When `makepkg` fails to build a package, offer the option for trying again.
+  aur_results_last_modified  => 1,                               # bool -- Show the date when the packages were last updated in AUR results.
+  aur_results_popularity     => 1,                               # bool -- Show the popularity score in AUR results.
+  aur_results_show_installed => 1,                               # bool -- Show when a package is installed in AUR results.
+  aur_results_sort_by        => "name",                          #  str -- Sort the AUR results by "name", "votes", "popularity" or "date".
+  aur_results_sort_order     => "ascending",                     #  str -- Sort the AUR results in "ascending" or "descending" order.
+  aur_results_votes          => 1,                               # bool -- Show the number of votes in AUR results.
+  clone_dir                  => "$ENV{HOME}/.cache/trizen",      #  str -- Absolute path to the directory where to clone and build packages.
+  color_code_dependencies    => 1,                               # bool -- Display the dependencies of a package in specific colors (green = installed; cyan = in repo; purple = in AUR).
+  debug                      => 0,                               # bool -- Verbose mode.
+  flip_indices               => 0,                               # bool -- In search+install mode, show the indices of packages in reverse order.
+  flip_results               => 0,                               # bool -- Show the search results in reverse order.
+  forcecolors                => 0,                               # bool -- Force output colors even when not writing to STDOUT.
+  git_clone_depth            => 0,                               #  int -- Pass the `--depth int` flag to `git clone`. (0 means no limit)
+  lwp_env_proxy              => 1,                               # bool -- Use proxy settings defined in `env` (if any).
+  lwp_show_progress          => 0,                               # bool -- Show the HTTPS requests made by LWP::UserAgent to the AUR servers.
+  lwp_timeout                => 60,                              #  int -- Seconds after which an HTTPS connection is aborted.
+  makepkg_command            => "/usr/bin/makepkg -scf",         #  str -- The `makepkg` command that is used internally in building a package.
+  movepkg                    => 0,                               # bool -- Move built packages in the directory `movepkg_dir`.
+  movepkg_dir                => "/var/cache/pacman/pkg",         #  str -- Absolute path to the directory where to move built packages (with `movepkg`).
+  nocolors                   => 0,                               # bool -- Disable output colors for `trizen`.
+  noedit                     => 0,                               # bool -- Do not prompt to edit files when installing an AUR package.
+  noinfo                     => 0,                               # bool -- Do not display package information when installing an AUR package.
+  noinstall                  => 0,                               # bool -- Do not install built packages -- builds only.
+  nopull                     => 0,                               # bool -- Do not `git pull` new changes from the AUR git server.
+  one_line_edit              => 0,                               # bool -- Select one or more build files to view/edit with one-line prompt.
+  packages_in_stats          => 5,                               #  int -- The number of packages to display in `--stats`
+  pacman_command             => "/usr/bin/pacman",               #  str -- The `pacman` command that is used internally for pacman operations.
+  pacman_local_dir           => "/var/lib/pacman/local",         #  str -- Absolute path to the pacman's local directory.
+  pager_mode                 => 0,                               # bool -- Show the build files in pager mode using pager.
+  recompute_deps             => 1,                               # bool -- Recompute the dependencies of a package (after its build files are inspected / edited).
+  show_build_files_content   => 1,                               # bool -- Show the content of the build files of a package before building it.
+  show_comments              => 0,                               #  int -- Show the `n` most recent AUR comments for a package before building it. (max: 10)
+  show_diff_only             => 1,                               # bool -- When the build files of a package already exist locally, show the diff only.
+  show_inexistent            => 1,                               # bool -- Warn about packages that do not exist in AUR, during -Su.
+  show_ood                   => 0,                               # bool -- Warn about out-of-date marked packages, during -Su.
+  show_unmaintained          => 1,                               # bool -- Warn about unmaintained packages, during -Su.
+  skipinteg                  => 0,                               # bool -- Pass the `--skipinteg` argument to `makepkg`.
+  split_packages             => 1,                               # bool -- Ask about installing the other parts of a split package.
+  ssl_verify_hostname        => 1,                               # bool -- Ensure LWP::UserAgent connects to servers that have a valid certificate.
+  su_command                 => "/usr/bin/su -c",                #  str -- Command used when special permissions are required and `use_sudo` is set to 0.
+  sudo_autorepeat            => 0,                               # bool -- Automatically repeat `sudo -v` in the background after a `sudo` command was first executed.
+  sudo_autorepeat_at_runtime => 0,                               # bool -- Execute `sudo -v` when `trizen` is first executed and apply the behavior of `sudo_autorepeat`.
+  sudo_autorepeat_interval   => 180,                             #  int -- Interval, in seconds, after which `sudo -v` is executed in background (with `sudo_autorepeat`).
+  sudo_command               => "/usr/bin/sudo",                 #  str -- Command used when special permissions are required and `use_sudo` is set to 1.
+  sudo_remove_timestamp      => 1,                               # bool -- Remove the cached sudo credentials before `makepkg` is executed (`sudo --remove-timestamp`).
+  syntax_highlighting        => 1,                               # bool -- Syntax highlighting of the build files, using the `highlight` tool from [community].
+  syntax_highlighting_cmd    => "/usr/bin/highlight -O ansi",    #  str -- The `highlight` command used in highlighting the syntax of the build files (with `syntax_highlighting`).
+  use_github_api             => 1,                               # bool -- Check GitHub sources for updates using GitHub's API. (during `--devel --needed`)
+  use_gitlab_api             => 1,                               # bool -- Check GitLab sources for updates using GitLab's API. (during `--devel --needed`)
+  use_sudo                   => 1,                               # bool -- Use the `sudo` command when special permissions are required.
+  }
+#+END_SRC
+
+* Windows
+Some stuff for Windows PCs.
+
+** Autohotkey
+#+BEGIN_SRC conf
+  ;keyboard settings
+  Capslock::Esc
+
+  ;;; Window Managing
+  #M::
+
+  WinGet MX, MinMax, A
+
+  If MX
+  WinRestore A
+  Else WinMaximize A
+
+  #q::WinClose A
+
+#+END_SRC
+
+* Utility
+ org utility functions for this file. 
+#+NAME: sway-keybindings
+#+BEGIN_SRC python :var table=sway-keybindings-table :results output
+  for x in table:
+    print('bindsym ' + x[0] + ' ' + x[1])
+#+END_SRC
+
