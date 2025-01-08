@@ -1420,14 +1420,6 @@ Shamelessly stolen from Doom Emacs https://github.com/hlissner/doom-emacs/blob/m
   ;; to skip the mtime checks on every *.elc file.
   (setq load-prefer-newer noninteractive)
 
-  ;; gcc updates require libgccjit to update as well
-  ;; until both are updated => disable native compilation
-                                          ; (setq comp-deferred-compilation nil)
-
-  ;;; straight.el setup
-
-  ;; use develop branch, better org fixes
-  ;; (setq straight-repository-branch "develop")
   ;; straight.el bootstrap
 (defvar bootstrap-version)
 (let ((bootstrap-file
@@ -1445,7 +1437,7 @@ Shamelessly stolen from Doom Emacs https://github.com/hlissner/doom-emacs/blob/m
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 
-                                          ; load `use-package`
+  ; load `use-package`
   (straight-use-package 'use-package)
   (setq straight-use-package-by-default t)
   ;;(setq use-package-always-defer t
@@ -1764,22 +1756,8 @@ Which-key shows all available keybindings when pressing keys
 ** Appearance
 *** Font
 #+BEGIN_SRC emacs-lisp
-  (setq nri/font "Roboto Mono")
-  (setq nri/font-size 14)
-  (setq nri/font-size-hidpi 22)
-
-  ;; font
-  (set-frame-font nri/font nil t)
-  ;; change font size in hook, fixes size reset after changing themes
-  ;; (set-face-attribute 'default nil :height (* 10 (if (equal "merkur" (system-name)) nri/font-size-hidpi nri/font-size)))
-
-  (defvar after-load-theme-hook nil
-    "Hook run after a color theme is loaded using `load-theme'.")
-  (defadvice load-theme (after run-after-load-theme-hook activate)
-    "Run `after-load-theme-hook'."
-    (run-hooks 'after-load-theme-hook))
-  (add-hook 'after-load-theme-hook
-            (lambda () (set-face-attribute 'default nil :height (* 10 (if (equal "merkur" (system-name)) nri/font-size-hidpi nri/font-size)))))
+  (set-face-attribute 'default nil :height (* 10  14))
+  (set-frame-font "Roboto Mono" nil t)
 #+END_SRC
 *** Theme
 **** Spacemacs Theme
@@ -1788,26 +1766,6 @@ Which-key shows all available keybindings when pressing keys
     :defer t
     :init
     (load-theme 'spacemacs-dark t))
-#+END_SRC
-**** Doom Themes
-#+BEGIN_SRC emacs-lisp
-  (use-package doom-themes
-    :config
-    ;; Global settings (defaults)
-    (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
-          doom-themes-enable-italic t) ; if nil, italics is universally disabled
-    ;; (load-theme 'doom-dracula t)
-
-    ;; Enable flashing mode-line on errors
-    (doom-themes-visual-bell-config)
-
-    ;; or for treemacs users
-    ;; (setq doom-themes-treemacs-theme "doom-colors") ; use the colorful treemacs theme
-    ;; (doom-themes-treemacs-config)
-
-    ;; Corrects (and improves) org-mode's native fontification.
-    ;; (doom-themes-org-config))
-    )
 #+END_SRC
 *** Mode line
 **** Spaceline
@@ -2295,9 +2253,16 @@ Project Management
       "a" 'eglot-code-actions
       "s" 'lsp-ivy-global-workspace-symbol)
     )
+  (setq treesit-font-lock-level 4) ; full syntax highlighting from treesitter
 #+END_SRC
 #+BEGIN_SRC emacs-lisp
+;  (use-package treesit
+;    :straight (:type built-in)
+;    )
 #+END_SRC
+
+
+** Treesitter
 ** Languages
 *** Bash
 #+BEGIN_SRC emacs-lisp
@@ -2318,7 +2283,7 @@ Project Management
 LSP for C/C++
 #+BEGIN_SRC emacs-lisp
   (use-package cc-mode
-    :hook ((c-mode . lsp)(c-mode . tree-sitter-hl-mode) (c++-mode . lsp)(c++-mode . tree-sitter-hl-mode))
+    ;; :hook ((c-mode . lsp)(c-mode . tree-sitter-hl-mode) (c++-mode . lsp)(c++-mode . tree-sitter-hl-mode))
     :init
     (setq lsp-clients-clangd-args
           '("--suggest-missing-includes"
@@ -2336,13 +2301,6 @@ LSP for C/C++
   (use-package cmake-mode
     :after lsp-mode
     :hook (cmake-mode . lsp))
-#+END_SRC
-*** Java
-#+BEGIN_SRC emacs-lisp
-  (use-package lsp-java
-    :disabled
-    :after lsp-mode
-    :hook (java-mode . lsp))
 #+END_SRC
 *** Json
 #+BEGIN_SRC emacs-lisp
@@ -2602,18 +2560,6 @@ https://www.reddit.com/r/emacs/comments/fosdi2/orgtableautoalignmode_minor_mode_
 *** Python
 #+BEGIN_SRC emacs-lisp
   (use-package python)
-
-  (use-package lsp-python-ms
-    :after python
-    :ensure t
-    :hook (python-mode . (lambda ()
-                           (require 'lsp-python-ms)
-                           (lsp)))
-    :init (setq lsp-python-ms-auto-install-server t))
-  ;; (use-package lsp-python-ms
-  ;;   :hook (python-mode . (lambda ()
-  ;;                          (require 'lsp-python-ms)
-  ;;                          (lsp))))  ; or lsp-deferred
 #+END_SRC
 *** Rust
 **** Rust Mode
@@ -2624,6 +2570,7 @@ https://github.com/rust-lang/rust-mode
     ((rust-mode . eglot-ensure))
     :config
     (setq rust-format-on-save t)
+    (setq rust-mode-treesitter-derive t)
     :general
     (nri/major-leader
       :states '(normal visual motion emacs)
@@ -2667,11 +2614,6 @@ TODO: evalute the new fork https://github.com/anki-editor/anki-editor
     (setq ediff-window-setup-function 'ediff-setup-windows-plain) ;; no separate control panel
     (setq ediff-split-window-function 'split-window-horizontally)
     (setq ediff-merge-split-window-function 'split-window-horizontally))
-#+END_SRC
-*** Epub Viewer
-#+BEGIN_SRC emacs-lisp
-  (use-package nov
-    :mode ("\\.epub\\'" . nov-mode))
 #+END_SRC
 *** PDF Viewer
 Display PDF Files inside Emacs
@@ -2743,34 +2685,14 @@ Major Mode for gitconfig, gitignore, git-attributes
     (add-to-list 'auto-mode-alist
                  (cons "/.dockerignore\\'" 'gitignore-mode)))
 #+END_SRC
-
-** Misc
-TODO: Make async
+** Treesitter
 #+BEGIN_SRC emacs-lisp
-  (defun nri/bear ()
-    (let ((default-directory (lsp-workspace-root)))(shell-command-to-string "make clean; bear make")))
-#+END_SRC
-*** Transient
-#+BEGIN_SRC emacs-lisp
-  (use-package transient)
+  (use-package treesit-auto
+  :config
+  (setq treesit-auto-install 'prompt)
+  (global-treesit-auto-mode))
 #+END_SRC
 
-** Debugging
-Temporary
-#+BEGIN_SRC emacs-lisp
-  (setq gud-gdb-command-name "arm-none-eabi-gdb -i=mi")
-  (setq gdb-show-main t)
-#+END_SRC
-
-#+BEGIN_SRC emacs-lisp
-  (use-package gdb-mi
-    :straight (:host github :repo "weirdNox/emacs-gdb" :files ("*.el" "*.c" "*.h" "Makefile"))
-    :init
-    (fmakunbound 'gdb)
-    (fmakunbound 'gdb-enable-debug)
-    :config
-    (setq gdb-executable-name "arm-none-eabi-gdb"))
-#+END_SRC
 ** New
 *** Dashboard
 #+BEGIN_SRC emacs-lisp
@@ -2867,11 +2789,6 @@ Temporary
 
 
 #+END_SRC
-*** Bufler
-#+BEGIN_SRC emacs-lisp
-  (use-package bufler)
-#+END_SRC
-
 ** End
 #+BEGIN_SRC emacs-lisp
   (provide 'init)
