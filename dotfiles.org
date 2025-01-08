@@ -1735,7 +1735,7 @@ Spacemacs-like leader menu using space as a prefix.
       "Pf" '(straight-freeze-versions :wk "freeze packages")
 
       "r" '(:ignore t :wk "refactor")
-      "rr" '(lsp-rename :wk "rename")
+      "rr" '(eglot-rename :wk "rename")
       "s" '(:ignore t :wk "search")
       "ss" '(counsel-google t :wk "search")
       "S" '(:ignore t :wk "snippets")
@@ -2034,11 +2034,6 @@ More friendly interface
                               package-install (:columns ((ivy-rich-candidate (:width 25)) (ivy-rich-package-version (:width 12 :face font-lock-comment-face)) (ivy-rich-package-archive-summary (:width 7 :face font-lock-builtin-face)) (ivy-rich-package-install-summary (:width 23 :face font-lock-doc-face))))))
     :config (ivy-rich-mode +1) (setcdr (assq t ivy-format-functions-alist) #'ivy-format-function-line)) 
 #+END_SRC
-
-**** LSP Ivy
-#+BEGIN_SRC emacs-lisp
-  (use-package lsp-ivy)
-#+END_SRC
 ** Editing
 *** Evil
 Vim inside Emacs
@@ -2291,55 +2286,17 @@ Project Management
       "RET" '(projectile-run-vterm :wk "terminal")))
 #+END_SRC
 ** Language Server Protocol
-*** Main
+*** Eglot
 #+BEGIN_SRC emacs-lisp
-  (use-package lsp-mode
+  (use-package eglot
+    :straight (:type built-in)
     :general
-    (nri/major-leader
-      :keymaps 'lsp-mode-map
-      "a" 'lsp-execute-code-action
-      "R" 'lsp-workspace-restart
+      (nri/major-leader
+      "a" 'eglot-code-actions
       "s" 'lsp-ivy-global-workspace-symbol)
-    (:keymaps 'lsp-mode-map
-              :states '(normal visual)
-              "gd" 'lsp-find-definition
-              "gD" 'lsp-ui-peek-find-references)
-    :config
-    (setq lsp-semantic-tokens-enable t)
-    ;; debug
-    ;; (setq lsp-log-io t)
-    ;; (setq lsp-use-plists t)
-    (setq lsp-eldoc-enable-hover nil)
-    (setq lsp-prefer-flymake nil)
-    (setq lsp-prefer-capf t)
-    (setq lsp-auto-guess-root t))
+    )
 #+END_SRC
-*** Enhanced UI
 #+BEGIN_SRC emacs-lisp
-  ;; (use-package lsp-ui
-  ;;   :after lsp-mode
-  ;;   :config
-  ;;   ;; (setq lsp-ui-doc-include-signature t)
-  ;;   (setq lsp-ui-flycheck-enable t)
-  ;;   (setq lsp-ui-peek-always-show t)
-  ;;   (lsp-lens-mode)
-  ;;   :general
-  ;;   (:keymaps '(lsp-ui-peek-mode-map)
-  ;;             "C-j" 'lsp-ui-peek--select-next
-  ;;             "C-k" 'lsp-ui-peek--select-prev))
-#+END_SRC
-*** Debug (DAP)
-#+BEGIN_SRC emacs-lisp
-  (use-package dap-mode
-    :after lsp-mode
-    :config
-    (add-hook 'dap-stopped-hook
-              (lambda (arg) (call-interactively #'dap-hydra))))
-#+END_SRC
-*** LSP Origami
-#+BEGIN_SRC emacs-lisp
-  (use-package lsp-origami
-    :hook (lsp . lsp-origami))
 #+END_SRC
 ** Languages
 *** Bash
@@ -2663,16 +2620,8 @@ https://www.reddit.com/r/emacs/comments/fosdi2/orgtableautoalignmode_minor_mode_
 https://github.com/rust-lang/rust-mode
 #+BEGIN_SRC emacs-lisp
   (use-package rust-mode
-    :init
-    (setq lsp-rust-analyzer-server-display-inlay-hints t)
-    (setq lsp-rust-analyzer-display-chaining-hints t)
-    (setq lsp-rust-analyzer-display-parameter-hints t)
-    (setq lsp-rust-server 'rust-analyzer)
     :hook
-    (
-     (rust-mode . lsp)
-     ;; (rust-mode . tree-sitter-hl-mode)
-     )
+    ((rust-mode . eglot-ensure))
     :config
     (setq rust-format-on-save t)
     :general
