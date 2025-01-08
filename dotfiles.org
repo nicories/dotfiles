@@ -2772,31 +2772,6 @@ Temporary
     (setq gdb-executable-name "arm-none-eabi-gdb"))
 #+END_SRC
 ** New
-*** Tree-Sitter
-#+BEGIN_SRC emacs-lisp
-  (use-package tree-sitter
-    :config
-    (global-tree-sitter-mode)
-    (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode)
-    )
-  (use-package tree-sitter-langs)
-  ;; ;; Core APIs.
-  ;; (straight-register-package
-  ;;  '(tsc :host github
-  ;;        :repo "ubolonton/emacs-tree-sitter"
-  ;;        :files ("core/*.el")))
-  ;; ;; Base framework, syntax highlighting.
-  ;; (straight-use-package
-  ;;  '(tree-sitter :host github
-  ;;                :repo "ubolonton/emacs-tree-sitter"
-  ;;                :files ("lisp/*.el")))
-  ;; ;; Language bundle.
-  ;; (straight-use-package
-  ;;  '(tree-sitter-langs :host github
-  ;;                      :repo "ubolonton/emacs-tree-sitter"
-  ;;                      :files ("langs/*.el" "langs/queries")))
-
-#+END_SRC
 *** Dashboard
 #+BEGIN_SRC emacs-lisp
   ;; (use-package dashboard
