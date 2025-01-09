@@ -2076,9 +2076,7 @@ https://github.com/PythonNut/evil-easymotion
 *** Parenthesis
 Automatically insert pair of parens
 #+BEGIN_SRC emacs-lisp
-  (use-package smartparens
-    :config
-    (smartparens-global-mode 1))
+  (electric-pair-mode)
 #+END_SRC
 *** Anzu
 Search Improvements
@@ -2255,14 +2253,12 @@ Project Management
     )
   (setq treesit-font-lock-level 4) ; full syntax highlighting from treesitter
 #+END_SRC
+** Treesitter
 #+BEGIN_SRC emacs-lisp
 ;  (use-package treesit
 ;    :straight (:type built-in)
 ;    )
 #+END_SRC
-
-
-** Treesitter
 ** Languages
 *** Bash
 #+BEGIN_SRC emacs-lisp
@@ -2412,9 +2408,6 @@ This gets rid of the ltximg directories when using latex fragments
 Nicer looking bullets
 #+BEGIN_SRC emacs-lisp
   (setq org-hide-leading-stars t)
-  (use-package org-superstar
-    :init
-    (add-hook 'org-mode-hook (lambda () (org-superstar-mode 1))))
 #+END_SRC
 **** Babel
 #+BEGIN_SRC emacs-lisp
@@ -2430,14 +2423,6 @@ Nicer looking bullets
      (plantuml . t)
      (C . t)))
   ;; add additional languages with '((language . t)))
-#+END_SRC
-**** Org Noter
-https://github.com/weirdNox/org-noter
-Annotate PDF files within org-mode
-#+BEGIN_SRC emacs-lisp
-  (use-package org-noter
-    :config
-    (setq org-noter-auto-save-last-location t))
 #+END_SRC
 **** Attach
 #+BEGIN_SRC emacs-lisp
@@ -2529,34 +2514,6 @@ https://www.reddit.com/r/emacs/comments/fosdi2/orgtableautoalignmode_minor_mode_
   (setq org-src-fontify-natively t)
 #+END_SRC
 
-*** Plantuml
-#+BEGIN_SRC emacs-lisp
-  (use-package plantuml-mode
-    ;; Enable plantuml-mode for PlantUML files
-    :mode ("\\.plantuml\\'" "\\.puml\\'")
-    :after flycheck
-    ;; :hook plantuml-mode
-    :config
-    (plantuml-enable-debug)
-
-    ;; flycheck fixes
-    (flycheck-define-checker plantuml
-      "A checker using plantuml.
-        See `http://plantuml.com"
-      :command ("plantuml" "-syntax")
-      :standard-input t
-      :error-patterns ((error line-start "ERROR" "\n" line "\n" (message) line-end))
-      :modes plantuml-mode)
-
-    (add-to-list 'flycheck-checkers 'plantuml)
-
-    ;; for org mode
-    (setq org-plantuml-jar-path "/usr/share/java/plantuml/plantuml.jar")
-
-    ;; (setq plantuml-jar-path "/usr/share/java/plantuml/plantuml.jar")
-    (setq plantuml-executable-path "/usr/bin/plantuml")
-    (setq plantuml-default-exec-mode 'executable))
-#+END_SRC
 *** Python
 #+BEGIN_SRC emacs-lisp
   (use-package python)
@@ -2579,11 +2536,6 @@ https://github.com/rust-lang/rust-mode
     (:keymaps 'rust-mode-map
               :states '(normal visual motion emacs)
               "J" 'lsp-rust-analyzer-join-lines))
-#+END_SRC
-*** Yaml
-#+BEGIN_SRC emacs-lisp
-  (use-package yaml-mode
-    :hook (yaml-mode . lsp))
 #+END_SRC
 ** Applications
 *** Anki
