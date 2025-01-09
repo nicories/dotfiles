@@ -2298,14 +2298,6 @@ LSP for C/C++
     :after lsp-mode
     :hook (cmake-mode . lsp))
 #+END_SRC
-*** Json
-#+BEGIN_SRC emacs-lisp
-  (use-package json-mode
-    :config
-    (setq lsp-json-schemas '((fileMatch . "manifest.json") (url . "https://json.schemastore.org/webextension")))
-    :hook (json-mode . prettier-js-mode) (json-mode . lsp))
-#+END_SRC
-
 *** Markdown
 https://github.com/jrblevin/markdown-mode
 #+BEGIN_SRC emacs-lisp
