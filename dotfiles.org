@@ -2323,6 +2323,7 @@ https://github.com/jrblevin/markdown-mode
 #+BEGIN_SRC emacs-lisp
   (use-package org
     ;; :hook (org-mode . org-table-auto-align-mode)
+    :straight (:type built-in)
     :general
     (nri/major-leader
       :states '(normal visual motion emacs)
