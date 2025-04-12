@@ -1334,6 +1334,8 @@ loaded before init.el
   (setq inhibit-startup-message t)
   ;; no scrash message popup
   (setq initial-scratch-message nil)
+  ;; prevent package.el loading packages prior to their init-file loading
+  (setq package-enable-at-startup nil)
 #+END_SRC
 ** straight.el bootstrap (v7)
 #+BEGIN_SRC emacs-lisp
