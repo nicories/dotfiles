@@ -1386,16 +1386,7 @@ loaded before init.el
 #+END_SRC
 ** More sensible defaults
 A bunch of stuff that really should be the default configuration.
-*** No Littering
-#+BEGIN_SRC emacs-lisp
-  (use-package no-littering
-    :demand t
-    :init
-    (setq no-littering-etc-directory user-emacs-directory)
-    (setq no-littering-var-directory
-          (expand-file-name "data/" nri/cache)))
-#+END_SRC
-**** No auto-save files (##)
+*** No auto-save files (##)
 #+BEGIN_SRC emacs-lisp
   (setq auto-save-default nil) ;; TODO only in git?
 #+END_SRC
