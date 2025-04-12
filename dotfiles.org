@@ -1317,96 +1317,25 @@ Since Sway and i3 are mostly compatible we can extract a common base config.
 :header-args: :tangle ~/.config/emacs/init.el :mkdirp yes
 :END:
 ** Early init
-Shamelessly stolen from Doom Emacs https://github.com/hlissner/doom-emacs/blob/master/early-init.el
+loaded before init.el
 #+BEGIN_SRC emacs-lisp :tangle ~/.config/emacs/early-init.el
     ;;; early-init.el -*- lexical-binding: t; -*-
 
-  ;; Emacs 27.1 introduced early-init.el, which is run before init.el, before
-  ;; package and UI initialization happens, and before site files are loaded.
-
-  ;; A big contributor to startup times is garbage collection. We up the gc
-  ;; threshold to temporarily prevent it from running, then reset it later by
-  ;; enabling `gcmh-mode'. Not resetting it will cause stuttering/freezes.
-  (setq gc-cons-threshold most-positive-fixnum)
-
-  ;; Prevent unwanted runtime compilation for gccemacs (native-comp) users;
-  ;; packages are compiled ahead-of-time when they are installed and site files
-  ;; are compiled when gccemacs is installed.
-  (setq native-comp-deferred-compilation nil)
-
-  ;; In Emacs 27+, package initialization occurs before `user-init-file' is
-  ;; loaded, but after `early-init-file'. Doom handles package initialization, so
-  ;; we must prevent Emacs from doing it early!
-  (setq package-enable-at-startup nil)
-
-  ;; In noninteractive sessions, prioritize non-byte-compiled source files to
-  ;; prevent the use of stale byte-code. Otherwise, it saves us a little IO time
-  ;; to skip the mtime checks on every *.elc file.
-  (setq load-prefer-newer noninteractive)
-
-  (unless (or (daemonp)
-              noninteractive
-              init-file-debug)
-    (let ((old-file-name-handler-alist file-name-handler-alist))
-      ;; `file-name-handler-alist' is consulted on each `require', `load' and
-      ;; various path/io functions. You get a minor speed up by unsetting this.
-      ;; Some warning, however: this could cause problems on builds of Emacs where
-      ;; its site lisp files aren't byte-compiled and we're forced to load the
-      ;; *.el.gz files (e.g. on Alpine).
-      (setq-default file-name-handler-alist nil)
-      ;; ...but restore `file-name-handler-alist' later, because it is needed for
-      ;; handling encrypted or compressed files, among other things.
-      (defun doom-reset-file-handler-alist-h ()
-        (setq file-name-handler-alist
-              ;; Merge instead of overwrite because there may have bene changes to
-              ;; `file-name-handler-alist' since startup we want to preserve.
-              (delete-dups (append file-name-handler-alist
-                                   old-file-name-handler-alist))))
-      (add-hook 'emacs-startup-hook #'doom-reset-file-handler-alist-h 101))
-
-    ;; Premature redisplays can substantially affect startup times and produce
-    ;; ugly flashes of unstyled Emacs.
-    (setq-default inhibit-redisplay t
-                  inhibit-message t)
-    (add-hook 'window-setup-hook
-              (lambda ()
-                (setq-default inhibit-redisplay nil
-                              inhibit-message nil)
-                (redisplay)))
-
-    ;; Site files tend to use `load-file', which emits "Loading X..." messages in
-    ;; the echo area, which in turn triggers a redisplay. Redisplays can have a
-    ;; substantial effect on startup times and in this case happens so early that
-    ;; Emacs may flash white while starting up.
-    (define-advice load-file (:override (file) silence)
-      (load file nil 'nomessage))
-
-    ;; Undo our `load-file' advice above, to limit the scope of any edge cases it
-    ;; may introduce down the road.
-    (define-advice startup--load-user-init-file (:before (&rest _) init-doom)
-      (advice-remove #'load-file #'load-file@silence)))
-
-
-  ;; Contrary to what many Emacs users have in their configs, you don't need
-  ;; more than this to make UTF-8 the default coding system:
+  ;; make UTF-8 the default coding system:
   (set-language-environment "UTF-8")
 
-  ;; set-language-enviornment sets default-input-method, which is unwanted
-  (setq default-input-method nil)
+  ;; disable useless GUI elements
+  ;; done in early-init to avoid weird popups
+  (menu-bar-mode -1)
+  (scroll-bar-mode -1)
+  (tool-bar-mode -1)
 
-    ;;; UI settings
-  (push '(menu-bar-lines . 0)   default-frame-alist)
-  (push '(tool-bar-lines . 0)   default-frame-alist)
-  (push '(vertical-scroll-bars) default-frame-alist)
-  ;; And set these to nil so users don't have to toggle the modes twice to
-  ;; reactivate them.
-  (setq menu-bar-mode nil
-        tool-bar-mode nil
-        scroll-bar-mode nil)
+  ;; no start screen
   (setq inhibit-startup-message t)
+  ;; no scrash message popup
   (setq initial-scratch-message nil)
 #+END_SRC
-** Bootstrap
+** straight.el bootstrap (v7)
 #+BEGIN_SRC emacs-lisp
   ;;; init.el --- init file
 
@@ -1485,14 +1414,13 @@ This gets rid of the auto generated data that 'custom' saves to the init file.
 #+END_SRC
 *** Reload changed files automatically
 #+BEGIN_SRC emacs-lisp
-  (global-auto-revert-mode)
+  (global-auto-revert-mode t)
   (setq global-auto-revert-non-file-buffers t) ;; also dired etc
   (setq auto-revert-verbose nil) ;; no messages
 #+END_SRC
 *** Highlight HTTP Links
 #+BEGIN_SRC emacs-lisp
-  (use-package goto-addr
-    :hook (prog-mode . goto-address-prog-mode))
+  (global-goto-address-mode t)
 #+END_SRC
 *** Better compilation buffer
 #+BEGIN_SRC emacs-lisp
@@ -1517,15 +1445,6 @@ This gets rid of the auto generated data that 'custom' saves to the init file.
 #+BEGIN_SRC emacs-lisp
   (defalias 'yes-or-no-p 'y-or-n-p)
 #+END_SRC
-*** UTF-8 Encoding
-#+BEGIN_SRC emacs-lisp
-  (setq locale-coding-system 'utf-8) ; pretty
-  (set-terminal-coding-system 'utf-8) ; pretty
-  (set-keyboard-coding-system 'utf-8) ; pretty
-  (set-selection-coding-system 'utf-8) ; please
-  (prefer-coding-system 'utf-8) ; with sugar on top
-  (setq-default indent-tabs-mode nil)
-#+END_SRC
 *** Unique buffer names when same file names
 #+BEGIN_SRC emacs-lisp
   (setq uniquify-buffer-name-style 'forward)
@@ -1541,11 +1460,6 @@ This gets rid of the auto generated data that 'custom' saves to the init file.
   ;; (setq recentf-save-file (expand-file-name "recentf" nri/cache))
 #+END_SRC
 *** Performance
-**** Garbage Collection
-#+BEGIN_SRC emacs-lisp
-  (use-package gcmh
-    :config (gcmh-mode t))
-#+END_SRC
 **** Let Emacs reads more data 
 #+BEGIN_SRC emacs-lisp
   (setq read-process-output-max (* 1024 1024)) ;; 1mb
@@ -1593,17 +1507,6 @@ This gets rid of the auto generated data that 'custom' saves to the init file.
 #+BEGIN_SRC emacs-lisp
   (add-to-list 'display-buffer-alist
                (cons "\\*Async Shell Command\\*.*" (cons #'display-buffer-no-window nil)))
-#+END_SRC
-*** Color in Compilation
-#+BEGIN_SRC emacs-lisp
-  (use-package ansi-color
-    :hook (compilation-filter . endless/colorize-compilation)
-    :init
-    (defun endless/colorize-compilation ()
-      "Colorize from `compilation-filter-start' to `point'."
-      (let ((inhibit-read-only t))
-        (ansi-color-apply-on-region
-         compilation-filter-start (point)))))
 #+END_SRC
 *** Fix long lines
 #+BEGIN_SRC emacs-lisp
@@ -1826,13 +1729,6 @@ Spaceline
   (setq show-paren-delay 0)
   (show-paren-mode 1)
 #+END_SRC
-**** visualize color codes
-#+BEGIN_SRC emacs-lisp
-  (use-package rainbow-mode
-    :config
-    (rainbow-mode t))
-#+END_SRC
-
 **** Symbols
 #+BEGIN_SRC emacs-lisp
   (setq prettify-symbols-unprettify-at-point 'right-edge)
@@ -1846,10 +1742,6 @@ Spaceline
                                          ))
   (global-prettify-symbols-mode t)
 #+END_SRC
-#+BEGIN_SRC bash
-
-#+END_SRC
-
 **** Org Symbols
 #+BEGIN_SRC emacs-lisp
   ;; (with-eval-after-load 'org
@@ -2057,35 +1949,10 @@ https://github.com/PythonNut/evil-easymotion
               "C-a" 'evil-numbers/inc-at-pt
               "C-x" 'evil-numbers/dec-at-pt))
 #+END_SRC
-**** evil-goggles
-#+BEGIN_SRC emacs-lisp
-  (use-package evil-goggles
-    :config
-    (setq evil-goggles-duration 0.08)
-    (evil-goggles-use-diff-faces)
-    (evil-goggles-mode))
-#+END_SRC
-**** evil-traces
-#+BEGIN_SRC emacs-lisp
-  (use-package evil-traces
-    :config
-    (evil-traces-use-diff-faces) ; if you want to use diff's faces
-    (evil-traces-mode))
-#+END_SRC
-
 *** Parenthesis
 Automatically insert pair of parens
 #+BEGIN_SRC emacs-lisp
   (electric-pair-mode)
-#+END_SRC
-*** Anzu
-Search Improvements
-[[https://github.com/syohex/emacs-anzu]]
-#+BEGIN_SRC emacs-lisp
-  (use-package anzu
-    :config
-    (setq anzu-cons-mode-line-p nil)
-    (global-anzu-mode))
 #+END_SRC
 *** Autocompletion
 **** Company Mode
@@ -2142,12 +2009,12 @@ Search Improvements
 #+END_SRC
 
 *** EditorConfig
+Obey editorconfig settings.
 #+BEGIN_SRC emacs-lisp
-  (use-package editorconfig
-    :config
-    (editorconfig-mode 1))
+  (editorconfig-mode t)
 #+END_SRC
 *** Syntax Checking
+TODO: change to Flymake?
 Automatically check syntax using Flycheck.
 https://github.com/flycheck/flycheck/
 #+BEGIN_SRC emacs-lisp
@@ -2169,20 +2036,9 @@ https://github.com/flycheck/flycheck/
 *** Auto Save
 TODO: Trigger, when moving around
 #+BEGIN_SRC emacs-lisp
-  ;; ;; quiet auto save
-  ;; (setq save-silently t)
-  ;; (setq auto-save-visited-interval 1.0)
-  ;; (auto-save-visited-mode t)
-  ;; ;; in insert state -> 5 seconds
-  ;; (add-hook 'evil-insert-state-entry-hook
-  ;;           (lambda () 
-  ;;             (setq auto-save-visited-interval 5.0)
-  ;;             (auto-save-visited-mode 1))) ;; mode has to be reloaded
-  ;; ;; else 1 second
-  ;; (add-hook 'evil-insert-state-exit-hook
-  ;;           (lambda ()
-  ;;             (setq auto-save-visited-interval 1.0)
-  ;;             (auto-save-visited-mode 1)))
+  (setq auto-save-visited-interval 1.0)
+  (auto-save-visited-mode t)
+  (setq auto-save-timeout 5)
 #+END_SRC
 ** Projectile
 Project Management
@@ -2225,7 +2081,6 @@ Project Management
                                            "~/Projects/"
                                            ;; "~/work/"
                                            ))
-    (setq projectile-completion-system 'ivy)
     ;; fixes directory not found bug
     (setq projectile-git-submodule-command nil)
     (projectile-mode t)
@@ -2278,6 +2133,7 @@ Project Management
 *** C/C++
 LSP for C/C++
 #+BEGIN_SRC emacs-lisp
+  (add-hook 'c-ts-mode-hook 'eglot-ensure)
   (use-package cc-mode
     ;; :hook ((c-mode . lsp)(c-mode . tree-sitter-hl-mode) (c++-mode . lsp)(c++-mode . tree-sitter-hl-mode))
     :init
@@ -2297,18 +2153,6 @@ LSP for C/C++
   (use-package cmake-mode
     :after lsp-mode
     :hook (cmake-mode . lsp))
-#+END_SRC
-*** Markdown
-https://github.com/jrblevin/markdown-mode
-#+BEGIN_SRC emacs-lisp
-  (use-package markdown-mode)
-#+END_SRC
-
-**** Evil Markdown
-#+BEGIN_SRC emacs-lisp
-  ;; (use-package evil-markdown
-  ;;   :straight
-  ;;   (evil-markdown :type git :host github :repo "Somelauw/evil-markdown"))
 #+END_SRC
 *** Org
 **** Org Setup & Keybindings
@@ -2343,12 +2187,6 @@ https://github.com/jrblevin/markdown-mode
   (setq org-agenda-files (list "~/Cloud/dotfiles/Notizen/Routine.org"
                                "~/Cloud/dotfiles/Notizen/Notizen.org"
                                "~/Uni/Uni.org"))
-#+END_SRC
-**** Drag & Drop files to org modes
-#+BEGIN_SRC emacs-lisp
-  (use-package org-download
-    :config
-    (setq org-download-method 'attach))
 #+END_SRC
 **** show entities as UTF8 characters
 #+BEGIN_SRC emacs-lisp
@@ -2453,18 +2291,6 @@ Nicer looking bullets
   ;; (use-package ox-pandoc)
 #+END_SRC
 
-**** Evil Org
-#+BEGIN_SRC emacs-lisp
-  (use-package evil-org
-    :after org
-    :config
-    (add-hook 'org-mode-hook 'evil-org-mode)
-    (add-hook 'evil-org-mode-hook
-              (lambda ()
-                (evil-org-set-key-theme)))
-    (require 'evil-org-agenda)
-    (evil-org-agenda-set-keys))
-#+END_SRC
 **** Auto align tables
 https://www.reddit.com/r/emacs/comments/fosdi2/orgtableautoalignmode_minor_mode_for_auto/
 #+BEGIN_SRC emacs-lisp
@@ -2562,46 +2388,20 @@ TODO: evalute the new fork https://github.com/anki-editor/anki-editor
 #+END_SRC
 *** PDF Viewer
 Display PDF Files inside Emacs
+
+disabled for now
 https://github.com/politza/pdf-tools
 #+BEGIN_SRC emacs-lisp
-  (use-package pdf-tools
-    ;; no line numbers in pdf
-    :hook (pdf-view-mode . (lambda () (display-line-numbers-mode 0)))
-    :config
-    (setq-default pdf-view-display-size 'fit-page)
-    ;; high dpi support
-    (setq pdf-view-use-scaling t
-          pdf-view-use-imagemagick nil)
+  ;; (use-package pdf-tools
+  ;;   ;; no line numbers in pdf
+  ;;   :hook (pdf-view-mode . (lambda () (display-line-numbers-mode 0)))
+  ;;   :config
+  ;;   (setq-default pdf-view-display-size 'fit-page)
+  ;;   ;; high dpi support
+  ;;   (setq pdf-view-use-scaling t
+  ;;         pdf-view-use-imagemagick nil)
 
-    (pdf-tools-install))
-#+END_SRC
-*** Terminal
-**** Vterm
-#+BEGIN_SRC emacs-lisp
-  (use-package vterm
-    :config
-    ;; always start in insert mode
-    (add-hook 'vterm-mode-hook (lambda () (display-line-numbers-mode -1)))
-    (add-hook 'vterm-toggle-show-hook 'evil-insert-state))
-#+END_SRC
-***** Vterm Toggle
-#+BEGIN_SRC emacs-lisp
-  (use-package vterm-toggle
-    :config
-    (setq vterm-toggle-fullscreen-p nil)
-    (add-to-list 'display-buffer-alist
-                 '((lambda(bufname _) (with-current-buffer bufname (equal major-mode 'vterm-mode)))
-                   (display-buffer-reuse-window display-buffer-at-bottom)
-                   ;; (side . right)
-                   (dedicated . t) ;dedicated is supported in emacs27
-                   (reusable-frames . visible)
-                   (window-height . 0.3))))
-#+END_SRC
-**** Clickable URLs
-#+BEGIN_SRC emacs-lisp
-  (add-hook 'term-mode-hook
-            (lambda ()
-              (goto-address-mode)))
+  ;;   (pdf-tools-install))
 #+END_SRC
 *** Git
 **** Magit
