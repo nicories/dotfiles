@@ -1368,12 +1368,6 @@ loaded before init.el
       (eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 
-  ; load `use-package`
-  (straight-use-package 'use-package)
-  (setq straight-use-package-by-default t)
-  ;;(setq use-package-always-defer t
-  ;;;    use-package-verbose t)
-
 #+END_SRC
 
 ** Custom Constants
@@ -1444,13 +1438,11 @@ This gets rid of the auto generated data that 'custom' saves to the init file.
 #+END_SRC
 *** Recent files
 #+BEGIN_SRC emacs-lisp
-  (use-package recentf
-    :config
-    (add-to-list 'recentf-exclude no-littering-var-directory)
-    (setq recentf-max-menu-items 500)
-    (setq recentf-max-saved-items 500)
-    (recentf-mode 1))
+  (require 'recentf)
+  (setq recentf-max-menu-items 500)
+  (setq recentf-max-saved-items 500)
   ;; (setq recentf-save-file (expand-file-name "recentf" nri/cache))
+  (recentf-mode t)
 #+END_SRC
 *** Performance
 **** Let Emacs reads more data 
@@ -1521,116 +1513,114 @@ Keybindings are defined using general.el
 *** Leader Menu
 Spacemacs-like leader menu using space as a prefix.
 #+BEGIN_SRC emacs-lisp
-  (use-package general
-    :config
-    (general-evil-setup t)
-    (general-create-definer nri/leader
-      :keymaps 'override
-      :states '(normal visual motion emacs)
-      :prefix "SPC")
-    (general-create-definer nri/major-leader
-      :wrapping nri/leader
-      :prefix "SPC m")
-    ;; buffers
-    (nri/leader
-      :infix "b"
-      "" '(:ignore t :wk "buffers")
-      "b" '(counsel-ibuffer :wk "list")
-      "q" '(kill-this-buffer :wk "kill"))
+  (straight-use-package 'general)
+  (require 'general)
+  (general-evil-setup t)
+  (general-create-definer nri/leader
+    :keymaps 'override
+    :states '(normal visual motion emacs)
+    :prefix "SPC")
+  (general-create-definer nri/major-leader
+    :wrapping nri/leader
+    :prefix "SPC m")
+  ;; buffers
+  (nri/leader
+    :infix "b"
+    "" '(:ignore t :wk "buffers")
+    "b" '(counsel-ibuffer :wk "list")
+    "q" '(kill-this-buffer :wk "kill"))
 
-    (nri/leader
-      :infix "f"
-      "" '(:ignore t :wk "file")
-      "f" '(find-file :wk "find")
-      "g" '(counsel-git :wk "git")
-      "s" '(save-buffer :wk "save")
-      "t" '(projectile-find-test-file :wk "test file")
-      "o" '(projectile-find-other-file :wk "other file"))
+  (nri/leader
+    :infix "f"
+    "" '(:ignore t :wk "file")
+    "f" '(find-file :wk "find")
+    "g" '(counsel-git :wk "git")
+    "s" '(save-buffer :wk "save")
+    "t" '(projectile-find-test-file :wk "test file")
+    "o" '(projectile-find-other-file :wk "other file"))
 
-    (nri/leader
-      :infix "F"
-      "" '(:ignore t :wk "Frames")
-      "f" '(make-frame :wk "new"))
+  (nri/leader
+    :infix "F"
+    "" '(:ignore t :wk "Frames")
+    "f" '(make-frame :wk "new"))
 
-    (nri/leader
-      :infix "g"
-      "" '(:ignore t :wk "git")
-      "s" '(magit-status :wk "status"))
+  (nri/leader
+    :infix "g"
+    "" '(:ignore t :wk "git")
+    "s" '(magit-status :wk "status"))
 
-    ;; window management
-    (nri/leader
-      :infix "w"
-      "" '(:ignore t :wk "window")
-      "h" '(evil-window-left :wk "left")
-      "H" '(evil-window-move-far-left :wk "move left")
-      "j" '(evil-window-down :wk "down")
-      "J" '(evil-window-move-very-bottom :wk "move down")
-      "k" '(evil-window-up :wk "up")
-      "K" '(evil-window-move-very-top :wk "move up")
-      "l" '(evil-window-right :wk "right")
-      "L" '(evil-window-move-far-right :wk "move right")
-      "v" '(evil-window-vsplit :wk "split vertically")
-      "w" '(evil-window-next :wk "next")
-      "q" '(evil-window-delete :wk "quit")
-      "=" '(balance-windows :wk "quit"))
+  ;; window management
+  (nri/leader
+    :infix "w"
+    "" '(:ignore t :wk "window")
+    "h" '(evil-window-left :wk "left")
+    "H" '(evil-window-move-far-left :wk "move left")
+    "j" '(evil-window-down :wk "down")
+    "J" '(evil-window-move-very-bottom :wk "move down")
+    "k" '(evil-window-up :wk "up")
+    "K" '(evil-window-move-very-top :wk "move up")
+    "l" '(evil-window-right :wk "right")
+    "L" '(evil-window-move-far-right :wk "move right")
+    "v" '(evil-window-vsplit :wk "split vertically")
+    "w" '(evil-window-next :wk "next")
+    "q" '(evil-window-delete :wk "quit")
+    "=" '(balance-windows :wk "quit"))
 
-    (nri/leader
-      "TAB" '(mode-line-other-buffer :wk "previous")
-      "RET" '(vterm-toggle :wk "terminal")
+  (nri/leader
+    "TAB" '(mode-line-other-buffer :wk "previous")
+    "RET" '(vterm-toggle :wk "terminal")
 
-      "'" '(vterm-toggle :wk "terminal")
-
-
-      "/" '(swiper :wk "search")
-
-      "a" '(:ignore t :wk "Applications")
-
-      "aa" '(:ignore t :wk "Anki")
-      "aai" '(anki-editor-insert-note :wk "Insert Note")
-      "aap" '(anki-editor-push-notes :wk "Push Notes")
-
-      "af" '(:ignore t :wk "Fun")
-      "afz" '(zone :wk "Zone")
-
-      "e" '(:ignore t :wk "emacs")
-
-      "ec" '(list (find-file "~/.config/emacs/config.org") :wk "config")
-
-      "ed" '(:ignore t :wk "describe")
-      "edv" '(describe-variable :wk "variable")
-      "edf" '(describe-function :wk "function")
-      "edp" '(describe-package :wk "package")
-      "edk" '(describe-key :wk "key")
-      "edm" '(describe-minor-mode :wk "minor mode")
-      "edM" '(describe-mode :wk "all modes")
-
-      "ee" '(:ignore t :wk "eval")
-      "eee" '(eval-last-sexp :wk "expression")
-      "eer" '(eval-region :wk "region")
-
-      "et" '(counsel-load-theme :w-k "theme")
+    "'" '(vterm-toggle :wk "terminal")
 
 
+    "/" '(swiper :wk "search")
+
+    "a" '(:ignore t :wk "Applications")
+
+    "aa" '(:ignore t :wk "Anki")
+    "aai" '(anki-editor-insert-note :wk "Insert Note")
+    "aap" '(anki-editor-push-notes :wk "Push Notes")
+
+    "af" '(:ignore t :wk "Fun")
+    "afz" '(zone :wk "Zone")
+
+    "e" '(:ignore t :wk "emacs")
+
+    "ec" '(list (find-file "~/.config/emacs/config.org") :wk "config")
+
+    "ed" '(:ignore t :wk "describe")
+    "edv" '(describe-variable :wk "variable")
+    "edf" '(describe-function :wk "function")
+    "edp" '(describe-package :wk "package")
+    "edk" '(describe-key :wk "key")
+    "edm" '(describe-minor-mode :wk "minor mode")
+    "edM" '(describe-mode :wk "all modes")
+
+    "ee" '(:ignore t :wk "eval")
+    "eee" '(eval-last-sexp :wk "expression")
+    "eer" '(eval-region :wk "region")
+
+    "et" '(counsel-load-theme :w-k "theme")
 
 
-      "i" '(:ignore t :wk "insert")
-      "ic" '(:ignore t :wk "char")
-      "icc" '(insert-char :wk "char")
-      "ich" '(quoted-insert :wk "char")
 
 
-      "P" '(:ignore t :wk "packages")
-      "Pf" '(straight-freeze-versions :wk "freeze packages")
+    "i" '(:ignore t :wk "insert")
+    "ic" '(:ignore t :wk "char")
+    "icc" '(insert-char :wk "char")
+    "ich" '(quoted-insert :wk "char")
 
-      "r" '(:ignore t :wk "refactor")
-      "rr" '(eglot-rename :wk "rename")
-      "s" '(:ignore t :wk "search")
-      "ss" '(counsel-google t :wk "search")
-      "S" '(:ignore t :wk "snippets")
-      "Ss" '(yas-new-snippet :wk "new snippet")
-      "Si" '(yas-insert-snippet :wk "insert")
 
-      )
+    "P" '(:ignore t :wk "packages")
+    "Pf" '(straight-freeze-versions :wk "freeze packages")
+
+    "r" '(:ignore t :wk "refactor")
+    "rr" '(eglot-rename :wk "rename")
+    "s" '(:ignore t :wk "search")
+    "ss" '(counsel-google t :wk "search")
+    "S" '(:ignore t :wk "snippets")
+    "Ss" '(yas-new-snippet :wk "new snippet")
+    "Si" '(yas-insert-snippet :wk "insert")
     )
 #+END_SRC
 
@@ -1638,16 +1628,14 @@ Spacemacs-like leader menu using space as a prefix.
 https://github.com/justbur/emacs-which-key
 Which-key shows all available keybindings when pressing keys
 #+BEGIN_SRC emacs-lisp
-  (use-package which-key
-    :demand t
-    :config
-    (setq which-key-allow-evil-operators t)
-    ;; buggy: makes it not read the next character in evil mode
-    ;; (setq which-key-show-operator-state-maps t)
-    (setq which-key-separator " → ")
-    (setq which-key-prefix-prefix "+")
-    (setq which-key-idle-delay 0.3)
-    (which-key-mode 1))
+  (straight-use-package 'which-key)
+  (setq which-key-allow-evil-operators t)
+  ;; buggy: makes it not read the next character in evil mode
+  ;; (setq which-key-show-operator-state-maps t)
+  (setq which-key-separator " → ")
+  (setq which-key-prefix-prefix "+")
+  (setq which-key-idle-delay 0.3)
+  (which-key-mode t)
 #+END_SRC
 ** Appearance
 *** Font
@@ -1658,10 +1646,8 @@ Which-key shows all available keybindings when pressing keys
 *** Theme
 **** Spacemacs Theme
 #+BEGIN_SRC emacs-lisp
-  (use-package spacemacs-theme
-    :defer t
-    :init
-    (load-theme 'spacemacs-dark t))
+  (straight-use-package 'spacemacs-theme)
+  (load-theme 'spacemacs-dark t)
 #+END_SRC
 *** Mode line
 **** Spaceline
@@ -1810,46 +1796,24 @@ Spaceline
 ** Incremental Completion Framework
 *** Ivy
 #+BEGIN_SRC emacs-lisp
-  (use-package ivy
-    :config
-    (setq ivy-count-format "")
-    (setq ivy-use-virtual-buffers t))
-  (use-package swiper)
-  (use-package counsel
-    :general
-    (nri/leader
-      :infix "f"
-      "r" '(counsel-buffer-or-recentf :wk "recent"))
-    (nri/leader
-      "SPC" 'counsel-M-x)
-    (:keymaps 'ivy-minibuffer-map
-              "<escape>" 'minibuffer-keyboard-quit
-              "C-j" 'ivy-next-line
-              "C-w" 'backward-kill-word)
-    (:keymaps 'swiper-map
-              "<escape>" 'minibuffer-keyboard-quit)
-    :config
-    (ivy-mode 1)
-    (counsel-mode)
-    (setq ivy-initial-inputs-alist nil)
-    (setq ivy-re-builders-alist
-          '((swiper . ivy--regex-plus)(t . ivy--regex-fuzzy))) ;; Fuzzy for everything TODO: not for swiper etc.
-    ;; (setq ivy-initial-inputs-alist nil) ;; no ^ at the start
-    (define-key ivy-minibuffer-map (kbd "C-k") 'ivy-previous-line))
-#+END_SRC
-**** Ivy Rich
-More friendly interface
-#+BEGIN_SRC emacs-lisp
-  (use-package ivy-rich
-    :preface (defun ivy-rich-switch-buffer-icon (candidate) (with-current-buffer (get-buffer candidate) (all-the-icons-icon-for-mode major-mode)))
-    :init
-    (setq ivy-rich-display-transformers-list ; max column width sum = (ivy-poframe-width - 1)
-          '(ivy-switch-buffer (:columns ((ivy-rich-switch-buffer-icon (:width 2)) (ivy-rich-candidate (:width 35)) (ivy-rich-switch-buffer-project (:width 15 :face success)) (ivy-rich-switch-buffer-major-mode (:width 13 :face warning))) :predicate #'(lambda (cand) (get-buffer cand)))
-                              counsel-M-x (:columns ((counsel-M-x-transformer (:width 35)) (ivy-rich-counsel-function-docstring (:width 34 :face font-lock-doc-face))))
-                              counsel-describe-function (:columns ((counsel-describe-function-transformer (:width 35)) (ivy-rich-counsel-function-docstring (:width 34 :face font-lock-doc-face))))
-                              counsel-describe-variable (:columns ((counsel-describe-variable-transformer (:width 35)) (ivy-rich-counsel-variable-docstring (:width 34 :face font-lock-doc-face))))
-                              package-install (:columns ((ivy-rich-candidate (:width 25)) (ivy-rich-package-version (:width 12 :face font-lock-comment-face)) (ivy-rich-package-archive-summary (:width 7 :face font-lock-builtin-face)) (ivy-rich-package-install-summary (:width 23 :face font-lock-doc-face))))))
-    :config (ivy-rich-mode +1) (setcdr (assq t ivy-format-functions-alist) #'ivy-format-function-line)) 
+  (straight-use-package 'ivy)
+  (require 'ivy)
+  (setq ivy-count-format "")
+  (setq ivy-use-virtual-buffers t)
+
+  (straight-use-package 'swiper)
+  (straight-use-package 'counsel)
+  (nri/leader
+    :infix "f"
+    "r" '(counsel-buffer-or-recentf :wk "recent"))
+  (nri/leader
+    "SPC" 'counsel-M-x)
+  (ivy-mode t)
+  (counsel-mode t)
+  (setq ivy-initial-inputs-alist nil)
+  (setq ivy-re-builders-alist
+        '((swiper . ivy--regex-plus)(t . ivy--regex-fuzzy))) ;; Fuzzy for everything TODO: not for swiper etc.
+  (define-key ivy-minibuffer-map (kbd "C-k") 'ivy-previous-line)
 #+END_SRC
 ** Editing
 *** Evil
@@ -1857,64 +1821,52 @@ Vim inside Emacs
 **** Evil Mode
 https://github.com/emacs-evil/evil
 #+BEGIN_SRC emacs-lisp
-  (use-package evil
-    :demand t
-    :init
-    (setq evil-undo-system 'undo-redo)
-    (setq evil-want-C-u-scroll t)
-    (setq evil-want-keybinding nil)
-    :config
-    (evil-mode 1))
+  (straight-use-package 'evil)
+  (setq evil-undo-system 'undo-redo)
+  (setq evil-want-C-u-scroll t)
+  (setq evil-want-keybinding nil)
+  (evil-mode t)
 #+END_SRC
 **** Evil Surround
 https://github.com/emacs-evil/evil-surround
 #+BEGIN_SRC emacs-lisp
-  (use-package evil-surround
-    :after evil
-    :config
-    ;;(push '(?\\ . evil-surround-read-tag) evil-surround-pairs-alist)
-    (global-evil-surround-mode 1))
+  (straight-use-package 'evil-surround)
+  (global-evil-surround-mode t)
 #+END_SRC
 **** Evil Collection
 https://github.com/emacs-evil/evil-collection
 #+BEGIN_SRC emacs-lisp
-  (use-package evil-collection
-    :after evil
-    :config
-    (setq evil-collection-outline-bind-tab-p nil)
-    (setq evil-collection-company-use-tng nil)
-    (evil-collection-init))
+  (straight-use-package 'evil-collection)
+  (setq evil-collection-outline-bind-tab-p nil)
+  (setq evil-collection-company-use-tng nil)
+  (evil-collection-init)
 #+END_SRC
 **** Evil Nerd Commenter
 https://github.com/redguardtoo/evil-nerd-commenter
 #+BEGIN_SRC emacs-lisp
-  (use-package evil-nerd-commenter
-    :general
-    (:keymaps 'override
-              :states '(normal visual)
-              "gc" 'evilnc-comment-operator))
-#+END_SRC
-**** evil-easymotion
-https://github.com/PythonNut/evil-easymotion
-#+BEGIN_SRC emacs-lisp
-  ;; (use-package evil-easymotion
-  ;;   :config
-  ;;   (evilem-default-keybindings "SPC"))
+  (straight-use-package 'evil-nerd-commenter)
+  (require 'evil-nerd-commenter)
+  (general-define-key
+   :states '(normal visual)
+   :prefix "g"
+   "c" 'evilnc-comment-operator    ;; gc + motion or visual selection
+   "C" 'evilnc-comment-or-uncomment-lines) ;; gcc on line (can also do gC if you prefer)
 #+END_SRC
 **** evil-numbers
+TODO: disabled for now
 #+BEGIN_SRC emacs-lisp
-  (use-package evil-numbers
-    :straight
-    (evil-numbers :type git :host github :repo "janpath/evil-numbers")
-    :config
-    (setq evil-numbers/padDefault t)
-    :general
-    (:keymaps 'override
-              :states '(normal visual motion emacs)
-              "g C-a" 'evil-numbers/inc-at-pt-incremental
-              "g C-x" 'evil-numbers/dec-at-pt-incremental
-              "C-a" 'evil-numbers/inc-at-pt
-              "C-x" 'evil-numbers/dec-at-pt))
+  ;; (use-package evil-numbers
+  ;;   :straight
+  ;;   (evil-numbers :type git :host github :repo "janpath/evil-numbers")
+  ;;   :config
+  ;;   (setq evil-numbers/padDefault t)
+  ;;   :general
+  ;;   (:keymaps 'override
+  ;;             :states '(normal visual motion emacs)
+  ;;             "g C-a" 'evil-numbers/inc-at-pt-incremental
+  ;;             "g C-x" 'evil-numbers/dec-at-pt-incremental
+  ;;             "C-a" 'evil-numbers/inc-at-pt
+  ;;             "C-x" 'evil-numbers/dec-at-pt))
 #+END_SRC
 *** Parenthesis
 Automatically insert pair of parens
@@ -1922,59 +1874,7 @@ Automatically insert pair of parens
   (electric-pair-mode)
 #+END_SRC
 *** Autocompletion
-**** Company Mode
-#+BEGIN_SRC emacs-lisp
-  (use-package company
-    :config
-    ;; set default `company-backends'
-    (setq company-backends
-          '((company-files          ; files & directory
-             ;; company-keywords       ; keywords
-             company-capf
-             ;; company-yasnippet
-             )
-            ;; (company-abbrev company-dabbrev)
-            ))
-    (add-to-list 'company-frontends 'company-tng-frontend)
-    (setq company-minimum-prefix-length 1
-          company-idle-delay 0.0
-          company-tooltip-limit 14
-          company-dabbrev-downcase nil
-          company-dabbrev-ignore-case nil
-          company-dabbrev-code-other-buffers t
-          company-tooltip-align-annotations t
-          company-require-match 'never
-          company-frontends
-          '(company-pseudo-tooltip-frontend
-            company-echo-metadata-frontend))
-    :general
-    (:keymaps 'company-active-map
-              :states '(insert)
-              "<return>" #'company-complete-selection
-              "RET" #'company-complete-selection
-              ;; "TAB"       #'company-select-next
-              "S-TAB"   #'company-select-previous))
-#+END_SRC
-**** Company Mode Icons
-#+BEGIN_SRC emacs-lisp
-  ;; (use-package company-box
-  ;; :hook (company-mode . company-box-mode))
-#+END_SRC
-
-**** Company Mode Formatting
-#+BEGIN_SRC emacs-lisp
-  ;; auto completion
-  ;; (custom-set-faces
-  ;; '(company-tooltip-common
-  ;;  ((t (:inherit company-tooltip :weight bold :underline nil))))
-  ;; '(company-tooltip-common-selection
-  ;;  ((t (:inherit company-tooltip-selection :weight bold :underline nil)))))
-  ;; (setq company-tooltip-limit 5
-  ;; company-tooltip-align-annotations t
-  ;; company-go-show-annotation t
-  ;; company-tooltip-minimum 5)
-#+END_SRC
-
+TODO
 *** EditorConfig
 Obey editorconfig settings.
 #+BEGIN_SRC emacs-lisp
@@ -1985,19 +1885,16 @@ TODO: change to Flymake?
 Automatically check syntax using Flycheck.
 https://github.com/flycheck/flycheck/
 #+BEGIN_SRC emacs-lisp
-  (use-package flycheck
-    :config
-    (setq flycheck-indication-mode 'left-margin) ;; use margin instead of fringe -> better scaling
-    (global-flycheck-mode))
+  ;; (use-package flycheck
+  ;;   :config
+  ;;   (setq flycheck-indication-mode 'left-margin) ;; use margin instead of fringe -> better scaling
+  ;;   (global-flycheck-mode))
 #+END_SRC
 *** Snippets
 **** Yasnippet
 #+BEGIN_SRC emacs-lisp
-  (use-package yasnippet
-    :init
-    ;; (setq yas-snippet-dirs (list (expand-file-name "snippets/" user-emacs-directory)))
-    :config
-    (yas-global-mode 1)) ;; enable yasnippet everywhere
+  (straight-use-package 'yasnippet)
+  (yas-global-mode t) ;; enable yasnippet everywhere
 #+END_SRC
 
 *** Auto Save
@@ -2010,144 +1907,119 @@ TODO: Trigger, when moving around
 ** Projectile
 Project Management
 #+BEGIN_SRC emacs-lisp
-  (use-package projectile
-    :config
-    ;; default projectile behaviour is to ignore nested makefiles (i.e. makefile beneath git repo -> git repo is root)
-    ;; this makes makefiles the root
-    (add-to-list 'projectile-project-root-files  "Makefile") 
-    (add-to-list 'projectile-project-root-files  "makefile")
+  (straight-use-package 'projectile)
+  (require 'projectile)
+  ;; default projectile behaviour is to ignore nested makefiles (i.e. makefile beneath git repo -> git repo is root)
+  ;; this makes makefiles the root
+  (add-to-list 'projectile-project-root-files  "Makefile") 
+  (add-to-list 'projectile-project-root-files  "makefile")
 
-    (projectile-register-project-type 'rust-cargo-fixed '("Cargo.toml")
-                                      :project-file "Cargo.toml"
-                                      :compile "cargo build"
-                                      :test "cargo test"
-                                      :test-dir "tests/"
-                                      :src-dir "src/"
-                                      :run "cargo run")
-    (projectile-register-project-type 'Makefile-standard '("Makefile")
-                                      :compile "make"
-                                      :test "make test"
-                                      :run "make run")
-    (projectile-register-project-type 'makefile-standard '("makefile")
-                                      :compile "make"
-                                      :test "make test"
-                                      :run "make run")
-    ;; (projectile-register-project-type 'embedded-arm-asm '("Makefile")
-    ;;                                   :compile "make"
-    ;;                                   :test "make test"
-    ;;                                   :run "make run")
-    ;; (projectile-register-project-type 'embedded-arm-hal-make '("Makefile")
-    ;;                                   :compile "make"
-    ;;                                   :test "make test"
-    ;;                                   :run "make run")
-    (projectile-register-project-type 'platformio '("platformio.ini")
-                                      :compile "platformio run"
-                                      :test "platformio test"
-                                      :run "platformio run -t upload && platformio device monitor")
-    (setq projectile-project-search-path '(
-                                           "~/Projects/"
-                                           ;; "~/work/"
-                                           ))
-    ;; fixes directory not found bug
-    (setq projectile-git-submodule-command nil)
-    (projectile-mode t)
-    ;; hotkeys
-    :general
-    (nri/leader
-      :infix "p"
-      "" '(:ignore t :wk "projectile")
-      "p" '(projectile-switch-project :wk "switch")
-      "f" '(projectile-find-file :wk "find file")
-      "r" '(projectile-run-project :wk "run project")
-      "t" '(projectile-test-project :wk "test project")
-      "c" '(projectile-compile-project :wk "compile project")
-      "RET" '(projectile-run-vterm :wk "terminal")))
+  (projectile-register-project-type 'rust-cargo-fixed '("Cargo.toml")
+                                    :project-file "Cargo.toml"
+                                    :compile "cargo build"
+                                    :test "cargo test"
+                                    :test-dir "tests/"
+                                    :src-dir "src/"
+                                    :run "cargo run")
+  (projectile-register-project-type 'Makefile-standard '("Makefile")
+                                    :compile "make"
+                                    :test "make test"
+                                    :run "make run")
+  (projectile-register-project-type 'makefile-standard '("makefile")
+                                    :compile "make"
+                                    :test "make test"
+                                    :run "make run")
+  ;; (projectile-register-project-type 'embedded-arm-asm '("Makefile")
+  ;;                                   :compile "make"
+  ;;                                   :test "make test"
+  ;;                                   :run "make run")
+  ;; (projectile-register-project-type 'embedded-arm-hal-make '("Makefile")
+  ;;                                   :compile "make"
+  ;;                                   :test "make test"
+  ;;                                   :run "make run")
+  (projectile-register-project-type 'platformio '("platformio.ini")
+                                    :compile "platformio run"
+                                    :test "platformio test"
+                                    :run "platformio run -t upload && platformio device monitor")
+  (setq projectile-project-search-path '(
+                                         "~/Projects/"
+                                         ;; "~/work/"
+                                         ))
+  ;; fixes directory not found bug
+  (setq projectile-git-submodule-command nil)
+  (projectile-mode t)
+  ;; hotkeys
+  (nri/leader
+    :infix "p"
+    "" '(:ignore t :wk "projectile")
+    "p" '(projectile-switch-project :wk "switch")
+    "f" '(projectile-find-file :wk "find file")
+    "r" '(projectile-run-project :wk "run project")
+    "t" '(projectile-test-project :wk "test project")
+    "c" '(projectile-compile-project :wk "compile project")
+    "RET" '(projectile-run-vterm :wk "terminal"))
 #+END_SRC
 ** Language Server Protocol
 *** Eglot
 #+BEGIN_SRC emacs-lisp
-  (use-package eglot
-    :straight (:type built-in)
-    :general
-      (nri/major-leader
-      "a" 'eglot-code-actions
-      "s" 'lsp-ivy-global-workspace-symbol)
-    )
+  (require 'eglot)
+  (nri/major-leader
+    "a" 'eglot-code-actions
+    "s" 'lsp-ivy-global-workspace-symbol)
   (setq treesit-font-lock-level 4) ; full syntax highlighting from treesitter
-#+END_SRC
-** Treesitter
-#+BEGIN_SRC emacs-lisp
-;  (use-package treesit
-;    :straight (:type built-in)
-;    )
 #+END_SRC
 ** Languages
 *** Bash
 #+BEGIN_SRC emacs-lisp
-  (use-package sh-script
-    :after lsp-mode
-    :config
-    (dolist (pattern '("\\.zsh\\'"
-                       "zlogin\\'"
-                       "zlogout\\'"
-                       "zpreztorc\\'"
-                       "zprofile\\'"
-                       "zshenv\\'"
-                       "zshrc\\'"))
-      (add-to-list 'auto-mode-alist (cons pattern 'sh-mode)))
-    :hook (sh-mode . lsp))
+(require 'sh-script)
+
+;; Associate Zsh-related files with sh-mode
+(dolist (pattern '("\\.zsh\\'"
+                   "zlogin\\'"
+                   "zlogout\\'"
+                   "zpreztorc\\'"
+                   "zprofile\\'"
+                   "zshenv\\'"
+                   "zshrc\\'"))
+  (add-to-list 'auto-mode-alist (cons pattern 'sh-mode)))
 #+END_SRC
 *** C/C++
 LSP for C/C++
 #+BEGIN_SRC emacs-lisp
   (add-hook 'c-ts-mode-hook 'eglot-ensure)
-  (use-package cc-mode
-    ;; :hook ((c-mode . lsp)(c-mode . tree-sitter-hl-mode) (c++-mode . lsp)(c++-mode . tree-sitter-hl-mode))
-    :init
-    (setq lsp-clients-clangd-args
-          '("--suggest-missing-includes"
-            "-cross-file-rename"
-            "--clang-tidy")))
-  ;; (use-package ccls
-  ;;   :config
-  ;;   ;; move cache to /tmp/
-  ;;   (setq ccls-args '("--init={\"cache\": {\"directory\": \"/tmp/ccls-cache\"}}")))
-  ;;    semantic highlighting, TODO
-  ;;    (setq ccls-sem-highlight-method 'overlay))
-#+END_SRC
-*** Cmake
-#+BEGIN_SRC emacs-lisp
-  (use-package cmake-mode
-    :after lsp-mode
-    :hook (cmake-mode . lsp))
 #+END_SRC
 *** Org
 **** Org Setup & Keybindings
 #+BEGIN_SRC emacs-lisp
-  (use-package org
-    ;; :hook (org-mode . org-table-auto-align-mode)
-    :straight (:type built-in)
-    :general
-    (nri/major-leader
-      :states '(normal visual motion emacs)
-      :keymaps 'org-mode-map
-      "a" 'org-agenda
-      "A" 'org-attach
-      "be" 'org-babel-execute-maybe
-      "e" 'org-export-dispatch
-      "n" 'org-toggle-narrow-to-subtree
-      "o" 'org-open-at-point
-      "s" 'org-edit-special)
-    (nri/major-leader
-      :states '(normal visual motion emacs)
-      :keymaps 'org-src-mode-map
-      "s" 'org-edit-src-exit)
-    (:keymap 'org-mode-map
-             :keymaps 'override
-             "M-h" 'outline-promote
-             "M-j" 'outline-move-subtree-down
-             "M-k" 'outline-move-subtree-up
-             "M-l" 'outline-demote))
+  (require 'org)
+
+  ;; Keybindings for org-mode
+  (nri/major-leader
+    :states '(normal visual motion emacs)
+    :keymaps 'org-mode-map
+    "a" 'org-agenda
+    "A" 'org-attach
+    "be" 'org-babel-execute-maybe
+    "e" 'org-export-dispatch
+    "n" 'org-toggle-narrow-to-subtree
+    "o" 'org-open-at-point
+    "s" 'org-edit-special)
+
+  ;; Keybindings for org-src-mode
+  (nri/major-leader
+    :states '(normal visual motion emacs)
+    :keymaps 'org-src-mode-map
+    "s" 'org-edit-src-exit)
+
+  ;; Extra keybindings in org-mode for outline promotion/demotion/movement
+  (general-define-key
+   :keymaps 'org-mode-map
+   :states '(normal visual motion emacs)
+   "M-h" 'outline-promote
+   "M-j" 'outline-move-subtree-down
+   "M-k" 'outline-move-subtree-up
+   "M-l" 'outline-demote)
+
 #+END_SRC
 **** Org Agenda
 #+BEGIN_SRC emacs-lisp
@@ -2191,11 +2063,14 @@ This gets rid of the ltximg directories when using latex fragments
 
 ***** Automatically preview latex fragments
 #+BEGIN_SRC emacs-lisp
-  (use-package org-auto-toggle
-    :straight
-    (org-auto-toggle :type git :host github :repo "nicories/org-auto-toggle")
-    :config
-    (org-auto-toggle-mode))
+  ;; Install and require org-auto-toggle
+  (straight-use-package
+   '(org-auto-toggle :type git :host github :repo "nicories/org-auto-toggle"))
+
+  (require 'org-auto-toggle)
+
+  ;; Enable the global mode
+  (org-auto-toggle-mode t)
 #+END_SRC
 **** Never emulate tab
 #+BEGIN_SRC emacs-lisp
@@ -2244,20 +2119,11 @@ Nicer looking bullets
   ;;         "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
   ;;         "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"))
 #+END_SRC
-#+BEGIN_SRC emacs-lisp
-  (use-package htmlize)
-#+END_SRC
 
 ***** No HTML Validate link
 #+BEGIN_SRC emacs-lisp
   (setq org-html-validation-link nil)
 #+END_SRC
-
-***** Pandoc
-#+BEGIN_SRC emacs-lisp
-  ;; (use-package ox-pandoc)
-#+END_SRC
-
 **** Auto align tables
 https://www.reddit.com/r/emacs/comments/fosdi2/orgtableautoalignmode_minor_mode_for_auto/
 #+BEGIN_SRC emacs-lisp
@@ -2301,27 +2167,31 @@ https://www.reddit.com/r/emacs/comments/fosdi2/orgtableautoalignmode_minor_mode_
 #+END_SRC
 
 *** Python
+TODO
 #+BEGIN_SRC emacs-lisp
-  (use-package python)
+  ;; (use-package python)
 #+END_SRC
 *** Rust
 **** Rust Mode
 https://github.com/rust-lang/rust-mode
 #+BEGIN_SRC emacs-lisp
-  (use-package rust-mode
-    :hook
-    ((rust-mode . eglot-ensure))
-    :config
-    (setq rust-format-on-save t)
-    (setq rust-mode-treesitter-derive t)
-    :general
-    (nri/major-leader
-      :states '(normal visual motion emacs)
-      :keymaps 'lsp-mode-map
-      "h" 'lsp-inlay-hints-mode)
-    (:keymaps 'rust-mode-map
-              :states '(normal visual motion emacs)
-              "J" 'lsp-rust-analyzer-join-lines))
+(straight-use-package 'rust-mode)
+(require 'rust-mode)
+
+;; Ensure eglot is enabled when rust-mode is opened
+(add-hook 'rust-mode-hook #'eglot-ensure)
+
+;; Rust settings
+(setq rust-format-on-save t)
+(setq rust-mode-treesitter-derive t)
+
+;; Keybindings with general.el for eglot-mode
+(require 'general)
+
+(nri/major-leader
+  :states '(normal visual motion emacs)
+  :keymaps 'eglot-mode-map
+  "h" 'eglot-inlay-hints-mode)
 #+END_SRC
 ** Applications
 *** Anki
@@ -2346,12 +2216,13 @@ TODO: evalute the new fork https://github.com/anki-editor/anki-editor
   ;;   (advice-add 'anki-editor-push-notes :after #'(lambda (&opt) (global-auto-revert-mode 1))))
 #+END_SRC
 *** ediff
+TODO
 #+BEGIN_SRC emacs-lisp
-  (use-package ediff
-    :config
-    (setq ediff-window-setup-function 'ediff-setup-windows-plain) ;; no separate control panel
-    (setq ediff-split-window-function 'split-window-horizontally)
-    (setq ediff-merge-split-window-function 'split-window-horizontally))
+  ;; (use-package ediff
+  ;;   :config
+  ;;   (setq ediff-window-setup-function 'ediff-setup-windows-plain) ;; no separate control panel
+  ;;   (setq ediff-split-window-function 'split-window-horizontally)
+  ;;   (setq ediff-merge-split-window-function 'split-window-horizontally))
 #+END_SRC
 *** PDF Viewer
 Display PDF Files inside Emacs
@@ -2374,7 +2245,7 @@ https://github.com/politza/pdf-tools
 **** Magit
 https://github.com/magit/magit
 #+BEGIN_SRC emacs-lisp
-  (use-package magit)
+  (straight-use-package 'magit)
 #+END_SRC
 **** Start commit message in insert mode
 #+BEGIN_SRC emacs-lisp
@@ -2382,27 +2253,29 @@ https://github.com/magit/magit
 #+END_SRC
 
 **** Show git diff in Buffer
+TODO: evaluate
 #+BEGIN_SRC emacs-lisp
-  (use-package diff-hl
-    :config
-    (diff-hl-flydiff-mode t) ;; diff on the fly
-    (diff-hl-margin-mode t) ;; diff on the fly
-    (global-diff-hl-mode t))
+  ;; (use-package diff-hl
+  ;;   :config
+  ;;   (diff-hl-flydiff-mode t) ;; diff on the fly
+  ;;   (diff-hl-margin-mode t) ;; diff on the fly
+  ;;   (global-diff-hl-mode t))
 #+END_SRC
 **** Git Files
 Major Mode for gitconfig, gitignore, git-attributes
+TODO: evaluate
 #+BEGIN_SRC emacs-lisp
-  (use-package git-modes
-    :config
-    (add-to-list 'auto-mode-alist
-                 (cons "/.dockerignore\\'" 'gitignore-mode)))
+  ;; (use-package git-modes
+  ;;   :config
+  ;;   (add-to-list 'auto-mode-alist
+  ;;                (cons "/.dockerignore\\'" 'gitignore-mode)))
 #+END_SRC
 ** Treesitter
 #+BEGIN_SRC emacs-lisp
-  (use-package treesit-auto
-  :config
+  (straight-use-package 'treesit-auto)
+  (require 'treesit-auto)
   (setq treesit-auto-install 'prompt)
-  (global-treesit-auto-mode))
+  (global-treesit-auto-mode t)
 #+END_SRC
 
 ** New
