@@ -577,7 +577,7 @@ Since Sway and i3 are mostly compatible we can extract a common base config.
   exec --no-startup-id blueman-applet
   exec --no-startup-id firefox
   exec --no-startup-id discord
-  exec --no-startup-id "signal-desktop --ozone-platform=wayland"
+  exec --no-startup-id "signal-desktop --enable-features=UseOzonePlatform --ozone-platform=wayland"
   exec --no-startup-id $terminal
   exec --no-startup-id swaymsg 'workspace $wsp7; exec spotify 2> /dev/null'
   exec --no-startup-id thunderbird
@@ -1602,9 +1602,6 @@ Spacemacs-like leader menu using space as a prefix.
 
     "et" '(counsel-load-theme :w-k "theme")
 
-
-
-
     "i" '(:ignore t :wk "insert")
     "ic" '(:ignore t :wk "char")
     "icc" '(insert-char :wk "char")
@@ -1793,6 +1790,16 @@ Spaceline
 #+BEGIN_SRC emacs-lisp
   (global-hl-line-mode t)
 #+END_SRC
+** Mode Line
+#+BEGIN_SRC emacs-lisp
+  (line-number-mode t)    ;; Show current line number in the modeline
+  (column-number-mode t)  ;; Show current column number in the modeline
+  ;; no useless top/bot/55%
+  (setq mode-line-position
+        '((line-number-mode ("%l:"))
+          (column-number-mode ("%c"))))
+#+END_SRC
+
 ** Incremental Completion Framework
 *** Ivy
 #+BEGIN_SRC emacs-lisp
@@ -2383,24 +2390,24 @@ TODO: evaluate
 straight.el lockfile for a reproducible config
 #+BEGIN_SRC emacs-lisp :tangle ~/.config/emacs/straight/versions/default.el
 (("annalist.el" . "e1ef5dad75fa502d761f70d9ddf1aeb1c423f41d")
- ("compat" . "6926fcc1c891d4ff677515c0eaadf84d3ab364b1")
- ("dash.el" . "1de9dcb83eacfb162b6d9a118a4770b1281bcd84")
+ ("compat" . "2aee8353772745bb18db1ca63729a7f5ea572a74")
+ ("dash.el" . "fcb5d831fc08a43f984242c7509870f30983c27c")
  ("el-get" . "ec5cba8d965980b2c47a8a11dce30dd5e845ed2a")
  ("emacs-which-key" . "38d4308d1143b61e4004b6e7a940686784e51500")
- ("emacsmirror-mirror" . "7b0004e76c4fefae71ad8eb9cd25e1843eec0471")
- ("evil" . "6afd86bbc740f3008e91881f990bf346b31d3f0b")
- ("evil-collection" . "58766492f7dc830c010d5a4a095cf23d6eb0aefc")
+ ("emacsmirror-mirror" . "4b5bb38deb2db0fb423ac8ffd8952bb5bee31546")
+ ("evil" . "682e87fce99f39ea3155f11f87ee56b6e4593304")
+ ("evil-collection" . "3ac7bb303e86c5753aad70571f36aa81e2a72869")
  ("evil-nerd-commenter" . "ae52c5070a48793e2c24474c9c8dbf20175d18a0")
  ("evil-surround" . "da05c60b0621cf33161bb4335153f75ff5c29d91")
  ("general.el" . "826bf2b97a0fb4a34c5eb96ec2b172d682fd548f")
- ("gnu-elpa-mirror" . "c1792e74257d63ea3245d686f773db5127e5c123")
+ ("gnu-elpa-mirror" . "f0d83858f9d1b250f788c2228214f2a7ef8b1a66")
  ("goto-chg" . "72f556524b88e9d30dc7fc5b0dc32078c166fda7")
  ("magit" . "8b6bb7c7e88c298e1447ca7c86138588a3953784")
  ("melpa" . "7df53b5d2ac1f86e31f08279755ffc3b0552574a")
  ("nongnu-elpa" . "c408a345c3d4b571585ad51ba0e8339795110c04")
  ("org-auto-toggle" . "3a9706ab6b1a084798d8f15ab1043d3c5f4836a6")
  ("projectile" . "0404b9b6eeb0c6504337749a366fffd97de2bfbe")
- ("rust-mode" . "542f1755d8929ca83564322d7030d558f3392fe1")
+ ("rust-mode" . "efd830806c8519bb7f614504eac6bdfdbbac1247")
  ("seq" . "da86da9bf111f68fb81efd466d76d53af5aebc00")
  ("spacemacs-theme" . "6c74684c4d55713c8359bedf1936e429918a8c33")
  ("straight.el" . "33fb4695066781c634ff1c3c81ba96e880deccf7")
