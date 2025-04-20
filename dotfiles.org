@@ -1622,10 +1622,9 @@ Spacemacs-like leader menu using space as a prefix.
 #+END_SRC
 
 *** Which-Key
-https://github.com/justbur/emacs-which-key
 Which-key shows all available keybindings when pressing keys
 #+BEGIN_SRC emacs-lisp
-  (straight-use-package 'which-key)
+  (require 'which-key)
   (setq which-key-allow-evil-operators t)
   ;; buggy: makes it not read the next character in evil mode
   ;; (setq which-key-show-operator-state-maps t)
