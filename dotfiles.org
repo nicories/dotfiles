@@ -2200,9 +2200,10 @@ https://github.com/politza/pdf-tools
 #+END_SRC
 *** Git
 **** Magit
+TODO: evaluate
 https://github.com/magit/magit
 #+BEGIN_SRC emacs-lisp
-  (straight-use-package 'magit)
+  ;; (straight-use-package 'magit)
 #+END_SRC
 **** Start commit message in insert mode
 #+BEGIN_SRC emacs-lisp
