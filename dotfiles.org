@@ -1545,6 +1545,13 @@ Spacemacs-like leader menu using space as a prefix.
     "f" '(make-frame :wk "new"))
 
   (nri/leader
+    :infix "p"
+    "" '(:ignore t :wk "Projects")
+    "p" '(project-switch-project :wk "switch")
+    "f" '(project-find-file :wk "find file")
+    "RET" '(project-shell :wk "terminal"))
+
+  (nri/leader
     :infix "g"
     "" '(:ignore t :wk "git")
     "s" '(magit-status :wk "status"))
@@ -1910,60 +1917,11 @@ TODO: Trigger, when moving around
   (auto-save-visited-mode t)
   (setq auto-save-timeout 5)
 #+END_SRC
-** Projectile
+** Projects
 Project Management
 #+BEGIN_SRC emacs-lisp
-  (straight-use-package 'projectile)
-  (require 'projectile)
-  ;; default projectile behaviour is to ignore nested makefiles (i.e. makefile beneath git repo -> git repo is root)
-  ;; this makes makefiles the root
-  (add-to-list 'projectile-project-root-files  "Makefile") 
-  (add-to-list 'projectile-project-root-files  "makefile")
-
-  (projectile-register-project-type 'rust-cargo-fixed '("Cargo.toml")
-                                    :project-file "Cargo.toml"
-                                    :compile "cargo build"
-                                    :test "cargo test"
-                                    :test-dir "tests/"
-                                    :src-dir "src/"
-                                    :run "cargo run")
-  (projectile-register-project-type 'Makefile-standard '("Makefile")
-                                    :compile "make"
-                                    :test "make test"
-                                    :run "make run")
-  (projectile-register-project-type 'makefile-standard '("makefile")
-                                    :compile "make"
-                                    :test "make test"
-                                    :run "make run")
-  ;; (projectile-register-project-type 'embedded-arm-asm '("Makefile")
-  ;;                                   :compile "make"
-  ;;                                   :test "make test"
-  ;;                                   :run "make run")
-  ;; (projectile-register-project-type 'embedded-arm-hal-make '("Makefile")
-  ;;                                   :compile "make"
-  ;;                                   :test "make test"
-  ;;                                   :run "make run")
-  (projectile-register-project-type 'platformio '("platformio.ini")
-                                    :compile "platformio run"
-                                    :test "platformio test"
-                                    :run "platformio run -t upload && platformio device monitor")
-  (setq projectile-project-search-path '(
-                                         "~/Projects/"
-                                         ;; "~/work/"
-                                         ))
-  ;; fixes directory not found bug
-  (setq projectile-git-submodule-command nil)
-  (projectile-mode t)
-  ;; hotkeys
-  (nri/leader
-    :infix "p"
-    "" '(:ignore t :wk "projectile")
-    "p" '(projectile-switch-project :wk "switch")
-    "f" '(projectile-find-file :wk "find file")
-    "r" '(projectile-run-project :wk "run project")
-    "t" '(projectile-test-project :wk "test project")
-    "c" '(projectile-compile-project :wk "compile project")
-    "RET" '(projectile-run-vterm :wk "terminal"))
+  (setq project-mode-line t) ;; show project name in modeline
+  (project-remember-projects-under "~/Projects") ;; index all projects under ~/Projects
 #+END_SRC
 ** Language Server Protocol
 *** Eglot
