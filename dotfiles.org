@@ -1675,6 +1675,8 @@ Which-key shows all available keybindings when pressing keys
 **** Show matching parens
 #+BEGIN_SRC emacs-lisp
   (setq show-paren-delay 0)
+  (setq show-paren-when-point-inside-paren t) ;; also when right next to it
+  (setq show-paren-when-point-in-periphery t)
   (show-paren-mode t)
 #+END_SRC
 **** Symbols
