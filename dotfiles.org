@@ -1571,7 +1571,31 @@ Spacemacs-like leader menu using space as a prefix.
     "v" '(evil-window-vsplit :wk "split vertically")
     "w" '(evil-window-next :wk "next")
     "q" '(evil-window-delete :wk "quit")
-    "=" '(balance-windows :wk "quit"))
+    "=" '(balance-windows :wk "balance"))
+
+  ;; emacs utility
+  (nri/leader
+    :infix "e"
+    "" '(:ignore t :wk "emacs")
+
+    "c" '(list (find-file "~/.config/emacs/config.org") :wk "config")
+
+    "d" '(:ignore t :wk "describe")
+    "dv" '(describe-variable :wk "variable")
+    "df" '(describe-function :wk "function")
+    "dp" '(describe-package :wk "package")
+    "dk" '(describe-key :wk "key")
+    "dm" '(describe-minor-mode :wk "minor mode")
+    "dM" '(describe-mode :wk "all modes")
+
+    "e" '(:ignore t :wk "eval")
+    "ee" '(eval-last-sexp :wk "expression")
+    "er" '(eval-region :wk "region")
+
+    "t" '(counsel-load-theme :w-k "theme")
+    ;; emacs packages
+    "p" '(:ignore t :wk "packages")
+    "pf" '(straight-freeze-versions :wk "freeze packages"))
 
   (nri/leader
     "TAB" '(mode-line-other-buffer :wk "previous")
@@ -1591,32 +1615,11 @@ Spacemacs-like leader menu using space as a prefix.
     "af" '(:ignore t :wk "Fun")
     "afz" '(zone :wk "Zone")
 
-    "e" '(:ignore t :wk "emacs")
-
-    "ec" '(list (find-file "~/.config/emacs/config.org") :wk "config")
-
-    "ed" '(:ignore t :wk "describe")
-    "edv" '(describe-variable :wk "variable")
-    "edf" '(describe-function :wk "function")
-    "edp" '(describe-package :wk "package")
-    "edk" '(describe-key :wk "key")
-    "edm" '(describe-minor-mode :wk "minor mode")
-    "edM" '(describe-mode :wk "all modes")
-
-    "ee" '(:ignore t :wk "eval")
-    "eee" '(eval-last-sexp :wk "expression")
-    "eer" '(eval-region :wk "region")
-
-    "et" '(counsel-load-theme :w-k "theme")
 
     "i" '(:ignore t :wk "insert")
     "ic" '(:ignore t :wk "char")
     "icc" '(insert-char :wk "char")
     "ich" '(quoted-insert :wk "char")
-
-
-    "P" '(:ignore t :wk "packages")
-    "Pf" '(straight-freeze-versions :wk "freeze packages")
 
     "r" '(:ignore t :wk "refactor")
     "rr" '(eglot-rename :wk "rename")
@@ -1652,17 +1655,6 @@ Which-key shows all available keybindings when pressing keys
   (straight-use-package 'spacemacs-theme)
   (load-theme 'spacemacs-dark t)
 #+END_SRC
-*** Mode line
-**** Spaceline
-Spaceline
-[[https://github.com/TheBB/spaceline]]
-#+BEGIN_SRC emacs-lisp
-  ;; (use-package spaceline
-  ;;   :config
-  ;;   (spaceline-spacemacs-theme)
-  ;;   (setq spaceline-highlight-face-func 'spaceline-highlight-face-evil-state)
-  ;;   (setq spaceline-minor-modes-p nil))
-#+END_SRC
 *** Misc
 **** relative line numbers
 #+BEGIN_SRC emacs-lisp
@@ -1683,7 +1675,7 @@ Spaceline
 **** Show matching parens
 #+BEGIN_SRC emacs-lisp
   (setq show-paren-delay 0)
-  (show-paren-mode 1)
+  (show-paren-mode t)
 #+END_SRC
 **** Symbols
 #+BEGIN_SRC emacs-lisp
@@ -1884,7 +1876,7 @@ TODO: disabled for now
 *** Parenthesis
 Automatically insert pair of parens
 #+BEGIN_SRC emacs-lisp
-  (electric-pair-mode)
+  (electric-pair-mode t)
 #+END_SRC
 *** Autocompletion
 TODO
@@ -1911,7 +1903,6 @@ https://github.com/flycheck/flycheck/
 #+END_SRC
 
 *** Auto Save
-TODO: Trigger, when moving around
 #+BEGIN_SRC emacs-lisp
   (setq auto-save-visited-interval 1.0)
   (auto-save-visited-mode t)
