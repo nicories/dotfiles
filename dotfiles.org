@@ -1523,21 +1523,26 @@ Spacemacs-like leader menu using space as a prefix.
   (general-create-definer nri/major-leader
     :wrapping nri/leader
     :prefix "SPC m")
-  ;; buffers
+
+  (nri/leader
+    "SPC" 'execute-extended-command)
+
   (nri/leader
     :infix "b"
     "" '(:ignore t :wk "buffers")
-    "b" '(counsel-ibuffer :wk "list")
+    "b" '(ibuffer :wk "list")
+    "r" '(rename-buffer :wk "list")
     "q" '(kill-this-buffer :wk "kill"))
 
   (nri/leader
     :infix "f"
     "" '(:ignore t :wk "file")
     "f" '(find-file :wk "find")
-    "g" '(counsel-git :wk "git")
+    "r" '(recentf-open :wk "recent")
     "s" '(save-buffer :wk "save")
     "t" '(projectile-find-test-file :wk "test file")
     "o" '(projectile-find-other-file :wk "other file"))
+
 
   (nri/leader
     :infix "F"
@@ -1592,7 +1597,7 @@ Spacemacs-like leader menu using space as a prefix.
     "ee" '(eval-last-sexp :wk "expression")
     "er" '(eval-region :wk "region")
 
-    "t" '(counsel-load-theme :w-k "theme")
+    "t" '(load-theme :w-k "theme")
     ;; emacs packages
     "p" '(:ignore t :wk "packages")
     "pf" '(straight-freeze-versions :wk "freeze packages"))
@@ -1603,8 +1608,6 @@ Spacemacs-like leader menu using space as a prefix.
 
     "'" '(vterm-toggle :wk "terminal")
 
-
-    "/" '(swiper :wk "search")
 
     "a" '(:ignore t :wk "Applications")
 
@@ -1624,7 +1627,6 @@ Spacemacs-like leader menu using space as a prefix.
     "r" '(:ignore t :wk "refactor")
     "rr" '(eglot-rename :wk "rename")
     "s" '(:ignore t :wk "search")
-    "ss" '(counsel-google t :wk "search")
     "S" '(:ignore t :wk "snippets")
     "Ss" '(yas-new-snippet :wk "new snippet")
     "Si" '(yas-insert-snippet :wk "insert")
@@ -1810,27 +1812,6 @@ Which-key shows all available keybindings when pressing keys
 #+END_SRC
 
 ** Incremental Completion Framework
-*** Ivy
-#+BEGIN_SRC emacs-lisp
-  (straight-use-package 'ivy)
-  (require 'ivy)
-  (setq ivy-count-format "")
-  (setq ivy-use-virtual-buffers t)
-
-  (straight-use-package 'swiper)
-  (straight-use-package 'counsel)
-  (nri/leader
-    :infix "f"
-    "r" '(counsel-buffer-or-recentf :wk "recent"))
-  (nri/leader
-    "SPC" 'counsel-M-x)
-  (ivy-mode t)
-  (counsel-mode t)
-  (setq ivy-initial-inputs-alist nil)
-  (setq ivy-re-builders-alist
-        '((swiper . ivy--regex-plus)(t . ivy--regex-fuzzy))) ;; Fuzzy for everything TODO: not for swiper etc.
-  (define-key ivy-minibuffer-map (kbd "C-k") 'ivy-previous-line)
-#+END_SRC
 ** Editing
 *** Evil
 Vim inside Emacs
@@ -1922,6 +1903,7 @@ https://github.com/flycheck/flycheck/
 ** Projects
 Project Management
 #+BEGIN_SRC emacs-lisp
+  (require 'project)
   (setq project-mode-line t) ;; show project name in modeline
   (project-remember-projects-under "~/Projects") ;; index all projects under ~/Projects
 #+END_SRC
@@ -1930,8 +1912,7 @@ Project Management
 #+BEGIN_SRC emacs-lisp
   (require 'eglot)
   (nri/major-leader
-    "a" 'eglot-code-actions
-    "s" 'lsp-ivy-global-workspace-symbol)
+    "a" 'eglot-code-actions)
   (setq treesit-font-lock-level 4) ; full syntax highlighting from treesitter
 #+END_SRC
 ** Languages
@@ -2357,10 +2338,8 @@ TODO: evaluate
 straight.el lockfile for a reproducible config
 #+BEGIN_SRC emacs-lisp :tangle ~/.config/emacs/straight/versions/default.el
 (("annalist.el" . "e1ef5dad75fa502d761f70d9ddf1aeb1c423f41d")
- ("compat" . "2aee8353772745bb18db1ca63729a7f5ea572a74")
- ("dash.el" . "fcb5d831fc08a43f984242c7509870f30983c27c")
  ("el-get" . "ec5cba8d965980b2c47a8a11dce30dd5e845ed2a")
- ("emacs-which-key" . "38d4308d1143b61e4004b6e7a940686784e51500")
+ ("emacs-libvterm" . "056ad74653704bc353d8ec8ab52ac75267b7d373")
  ("emacsmirror-mirror" . "4b5bb38deb2db0fb423ac8ffd8952bb5bee31546")
  ("evil" . "682e87fce99f39ea3155f11f87ee56b6e4593304")
  ("evil-collection" . "3ac7bb303e86c5753aad70571f36aa81e2a72869")
@@ -2369,19 +2348,13 @@ straight.el lockfile for a reproducible config
  ("general.el" . "826bf2b97a0fb4a34c5eb96ec2b172d682fd548f")
  ("gnu-elpa-mirror" . "f0d83858f9d1b250f788c2228214f2a7ef8b1a66")
  ("goto-chg" . "72f556524b88e9d30dc7fc5b0dc32078c166fda7")
- ("magit" . "8b6bb7c7e88c298e1447ca7c86138588a3953784")
  ("melpa" . "7df53b5d2ac1f86e31f08279755ffc3b0552574a")
  ("nongnu-elpa" . "c408a345c3d4b571585ad51ba0e8339795110c04")
  ("org-auto-toggle" . "3a9706ab6b1a084798d8f15ab1043d3c5f4836a6")
- ("projectile" . "0404b9b6eeb0c6504337749a366fffd97de2bfbe")
  ("rust-mode" . "efd830806c8519bb7f614504eac6bdfdbbac1247")
- ("seq" . "da86da9bf111f68fb81efd466d76d53af5aebc00")
  ("spacemacs-theme" . "6c74684c4d55713c8359bedf1936e429918a8c33")
  ("straight.el" . "33fb4695066781c634ff1c3c81ba96e880deccf7")
- ("swiper" . "8dc02d5b725f78d1f80904807b46f5406f129674")
- ("transient" . "000ff15942878aa1108abaa020da86ada675fea9")
  ("treesit-auto" . "016bd286a1ba4628f833a626f8b9d497882ecdf3")
- ("with-editor" . "ca902ae02972bdd6919a902be2593d8cb6bd991b")
  ("yasnippet" . "fe1f4e0e96ce42d8668920335eb22c3c009dab3e"))
 :gamma
 #+END_SRC
