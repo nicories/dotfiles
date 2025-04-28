@@ -2228,6 +2228,12 @@ TODO: evaluate
   ;;   (add-to-list 'auto-mode-alist
   ;;                (cons "/.dockerignore\\'" 'gitignore-mode)))
 #+END_SRC
+*** vterm
+#+BEGIN_SRC emacs-lisp
+  (straight-use-package 'vterm)
+  (require 'vterm)
+#+END_SRC
+
 ** Treesitter
 #+BEGIN_SRC emacs-lisp
   (straight-use-package 'treesit-auto)
