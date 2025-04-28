@@ -2240,6 +2240,7 @@ TODO: evaluate
 *** vterm
 #+BEGIN_SRC emacs-lisp
   (straight-use-package 'vterm)
+  (setq vterm-timer-delay nil) ;; faster response time
   (require 'vterm)
 #+END_SRC
 
