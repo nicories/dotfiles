@@ -1604,7 +1604,7 @@ Spacemacs-like leader menu using space as a prefix.
 
   (nri/leader
     "TAB" '(mode-line-other-buffer :wk "previous")
-    "RET" '(vterm-toggle :wk "terminal")
+    "RET" '(vterm :wk "terminal")
 
     "'" '(vterm-toggle :wk "terminal")
 
@@ -2223,6 +2223,14 @@ TODO: evaluate
   (straight-use-package 'vterm)
   (setq vterm-timer-delay nil) ;; faster response time
   (require 'vterm)
+  ;; use ctrl-c immediately
+  (general-define-key
+   :states '(insert)
+   :keymaps 'vterm-mode-map
+   "C-c" #'vterm--self-insert)
+  ;; 
+  (add-hook 'vterm-mode-hook #'evil-insert-state)
+
 #+END_SRC
 
 ** Treesitter
