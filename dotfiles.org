@@ -1649,7 +1649,7 @@ Which-key shows all available keybindings when pressing keys
 *** Font
 #+BEGIN_SRC emacs-lisp
   (set-face-attribute 'default nil :height (* 10  14))
-  (set-frame-font "Roboto Mono" nil t)
+  (set-frame-font "Jetbrains Mono" nil t)
 #+END_SRC
 *** Theme
 **** Spacemacs Theme
