@@ -1912,6 +1912,8 @@ Project Management
 #+BEGIN_SRC emacs-lisp
   (require 'eglot)
   (nri/major-leader
+    :states '(normal visual motion emacs)
+    :keymaps 'eglot-mode-map
     "a" 'eglot-code-actions)
   (setq treesit-font-lock-level 4) ; full syntax highlighting from treesitter
 #+END_SRC
