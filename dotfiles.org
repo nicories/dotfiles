@@ -2116,9 +2116,8 @@ https://www.reddit.com/r/emacs/comments/fosdi2/orgtableautoalignmode_minor_mode_
 #+END_SRC
 
 *** Python
-TODO
 #+BEGIN_SRC emacs-lisp
-  ;; (use-package python)
+  (add-hook 'python-ts-mode-hook #'eglot-ensure)
 #+END_SRC
 *** Rust
 **** Rust Mode
