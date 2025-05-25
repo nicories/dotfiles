@@ -1794,21 +1794,21 @@ Which-key shows all available keybindings when pressing keys
 #+END_SRC
 ** Mode Line
 #+BEGIN_SRC emacs-lisp
-      (line-number-mode t)    ;; Show current line number in the modeline
-      (column-number-mode t)  ;; Show current column number in the modeline
-      ;; no useless top/bot/55%
-      (setq mode-line-position
-            '((line-number-mode ("%l:"))
-              (column-number-mode ("%c"))))
+  (line-number-mode -1)    ;; Show current line number in the modeline
+  (column-number-mode -1)  ;; Show current column number in the modeline
+  ;; no useless top/bot/55%
+  (setq mode-line-position
+        '((line-number-mode ("%l:"))
+          (column-number-mode ("%c"))))
 
-      ;; remove certain modes from the modeline
-      (add-hook 'after-init-hook
-              (lambda ()
-                (dolist (mode '
-    		     (yas-minor-mode
+  ;; remove certain modes from the modeline
+  (add-hook 'after-init-hook
+          (lambda ()
+            (dolist (mode '
+  		     (yas-minor-mode
   		    which-key-mode))
-                  (setq minor-mode-alist
-                        (assq-delete-all mode minor-mode-alist)))))
+              (setq minor-mode-alist
+                    (assq-delete-all mode minor-mode-alist)))))
 #+END_SRC
 
 ** Incremental Completion Framework
