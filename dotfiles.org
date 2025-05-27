@@ -1812,6 +1812,22 @@ Which-key shows all available keybindings when pressing keys
 #+END_SRC
 
 ** Incremental Completion Framework
+Use fido as a light-weight builtin narrowing system.
+#+BEGIN_SRC emacs-lisp
+  (fido-vertical-mode t)
+  (setq icomplete-show-matches-on-no-input t)
+  ;; no delays
+  (setq icomplete-max-delay-chars 0)
+  (setq icomplete-compute-delay 0)
+  (general-define-key
+   :keymaps 'icomplete-minibuffer-map
+   ;; C-j and C-k as up and down
+   "C-j" 'icomplete-forward-completions
+   "C-k" 'icomplete-backward-completions
+   ;; ESC to quit minibuffer
+   "<escape>" 'keyboard-escape-quit)
+#+END_SRC
+
 ** Editing
 *** Evil
 Vim inside Emacs
@@ -1822,6 +1838,8 @@ https://github.com/emacs-evil/evil
   (setq evil-undo-system 'undo-redo)
   (setq evil-want-C-u-scroll t)
   (setq evil-want-keybinding nil)
+  ;; no evil in minibuffer, so we can use ESC to quit
+  (setq evil-want-minibuffer nil)
   (evil-mode t)
 #+END_SRC
 **** Evil Surround
