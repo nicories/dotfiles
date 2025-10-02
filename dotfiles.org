@@ -2254,10 +2254,31 @@ TODO: evaluate
 
 ** Treesitter
 #+BEGIN_SRC emacs-lisp
-  (straight-use-package 'treesit-auto)
-  (require 'treesit-auto)
-  (setq treesit-auto-install 'prompt)
-  (global-treesit-auto-mode t)
+      ;; use tree-sitter major modes when available
+      (setq major-mode-remap-alist
+            '((c-mode          . c-ts-mode)
+              (c++-mode        . c++-ts-mode)
+              (python-mode     . python-ts-mode)
+              (json-mode       . json-ts-mode)
+              (sh-mode         . bash-ts-mode)
+              (go-mode         . go-ts-mode)
+              (rust-mode       . rust-ts-mode)))
+
+      (setq treesit-language-source-alist
+            '((bash "https://github.com/tree-sitter/tree-sitter-bash")
+              (c "https://github.com/tree-sitter/tree-sitter-c")
+              (cpp "https://github.com/tree-sitter/tree-sitter-cpp")
+              (go "https://github.com/tree-sitter/tree-sitter-go")
+              (json "https://github.com/tree-sitter/tree-sitter-json")
+              (python "https://github.com/tree-sitter/tree-sitter-python")
+              (rust "https://github.com/tree-sitter/tree-sitter-rust")))
+
+      ;; install all grammars in `treesit-language-source-alist`
+      (defun nri/treesit-install-all-languages ()
+        "Install all tree-sitter grammars listed in `treesit-language-source-alist`."
+        (interactive)
+        (dolist (lang treesit-language-source-alist)
+          (treesit-install-language-grammar (car lang))))
 #+END_SRC
 
 ** New
@@ -2381,7 +2402,6 @@ straight.el lockfile for a reproducible config
  ("rust-mode" . "efd830806c8519bb7f614504eac6bdfdbbac1247")
  ("spacemacs-theme" . "6c74684c4d55713c8359bedf1936e429918a8c33")
  ("straight.el" . "33fb4695066781c634ff1c3c81ba96e880deccf7")
- ("treesit-auto" . "016bd286a1ba4628f833a626f8b9d497882ecdf3")
  ("yasnippet" . "fe1f4e0e96ce42d8668920335eb22c3c009dab3e"))
 :gamma
 #+END_SRC
