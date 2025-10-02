@@ -1932,7 +1932,8 @@ Project Management
   (nri/major-leader
     :states '(normal visual motion emacs)
     :keymaps 'eglot-mode-map
-    "a" 'eglot-code-actions)
+    "a" 'eglot-code-actions
+    "h" 'eglot-inlay-hints-mode)
   (setq treesit-font-lock-level 4) ; full syntax highlighting from treesitter
 #+END_SRC
 ** Languages
@@ -2138,27 +2139,16 @@ https://www.reddit.com/r/emacs/comments/fosdi2/orgtableautoalignmode_minor_mode_
   (add-hook 'python-ts-mode-hook #'eglot-ensure)
 #+END_SRC
 *** Rust
-**** Rust Mode
-https://github.com/rust-lang/rust-mode
 #+BEGIN_SRC emacs-lisp
-(straight-use-package 'rust-mode)
-(require 'rust-mode)
+  ;; open .rs files in rust mode
+  ;; without the external rust-mode this association is missing
+  (add-to-list 'auto-mode-alist '("\\.rs\\'" . rust-ts-mode))
 
-;; Ensure eglot is enabled when rust-mode is opened
-(add-hook 'rust-mode-hook #'eglot-ensure)
-
-;; Rust settings
-(setq rust-format-on-save t)
-(setq rust-mode-treesitter-derive t)
-
-;; Keybindings with general.el for eglot-mode
-(require 'general)
-
-(nri/major-leader
-  :states '(normal visual motion emacs)
-  :keymaps 'eglot-mode-map
-  "h" 'eglot-inlay-hints-mode)
+  ;; start eglot
+  (add-hook 'rust-ts-mode-hook #'eglot-ensure)
 #+END_SRC
+
+
 ** Applications
 *** Anki
 Edit Anki Cards in Org-Mode
@@ -2399,7 +2389,6 @@ straight.el lockfile for a reproducible config
  ("melpa" . "7df53b5d2ac1f86e31f08279755ffc3b0552574a")
  ("nongnu-elpa" . "c408a345c3d4b571585ad51ba0e8339795110c04")
  ("org-auto-toggle" . "3a9706ab6b1a084798d8f15ab1043d3c5f4836a6")
- ("rust-mode" . "efd830806c8519bb7f614504eac6bdfdbbac1247")
  ("spacemacs-theme" . "6c74684c4d55713c8359bedf1936e429918a8c33")
  ("straight.el" . "33fb4695066781c634ff1c3c81ba96e880deccf7")
  ("yasnippet" . "fe1f4e0e96ce42d8668920335eb22c3c009dab3e"))
