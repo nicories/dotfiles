@@ -1627,9 +1627,7 @@ Spacemacs-like leader menu using space as a prefix.
     "r" '(:ignore t :wk "refactor")
     "rr" '(eglot-rename :wk "rename")
     "s" '(:ignore t :wk "search")
-    "S" '(:ignore t :wk "snippets")
-    "Ss" '(yas-new-snippet :wk "new snippet")
-    "Si" '(yas-insert-snippet :wk "insert")
+    ;; "S" '(:ignore t :wk "snippets")
     )
 #+END_SRC
 
@@ -1905,13 +1903,6 @@ https://github.com/flycheck/flycheck/
   ;;   (setq flycheck-indication-mode 'left-margin) ;; use margin instead of fringe -> better scaling
   ;;   (global-flycheck-mode))
 #+END_SRC
-*** Snippets
-**** Yasnippet
-#+BEGIN_SRC emacs-lisp
-  (straight-use-package 'yasnippet)
-  (yas-global-mode t) ;; enable yasnippet everywhere
-#+END_SRC
-
 *** Auto Save
 #+BEGIN_SRC emacs-lisp
   (setq auto-save-visited-interval 1.0)
@@ -2390,61 +2381,9 @@ straight.el lockfile for a reproducible config
  ("nongnu-elpa" . "c408a345c3d4b571585ad51ba0e8339795110c04")
  ("org-auto-toggle" . "3a9706ab6b1a084798d8f15ab1043d3c5f4836a6")
  ("spacemacs-theme" . "6c74684c4d55713c8359bedf1936e429918a8c33")
- ("straight.el" . "33fb4695066781c634ff1c3c81ba96e880deccf7")
- ("yasnippet" . "fe1f4e0e96ce42d8668920335eb22c3c009dab3e"))
+ ("straight.el" . "33fb4695066781c634ff1c3c81ba96e880deccf7"))
 :gamma
 #+END_SRC
-
-* Emacs Snippets
-** Anki Basic
-#+begin_src conf :tangle ~/.config/emacs/yasnippet/snippets/org-mode/anki_basic
-  # -*- mode: snippet -*-
-  # name: Anki Basic
-  # key: <ab
-  # --
-  `(progn (move-beginning-of-line nil) nil)`
-  `(make-string (org-current-level) ?*)` $1
-  :PROPERTIES:
-  :ANKI_NOTE_TYPE: Basic
-  :END:
-  $0
-#+end_src
-
-** Anki Reversed
-#+begin_src conf :tangle ~/.config/emacs/yasnippet/snippets/org-mode/anki_reversed
-  # -*- mode: snippet -*-
-  # name: Anki Reversed
-  # key: <ar
-  # --
-  `(progn (move-beginning-of-line nil) nil)`
-  `(make-string (org-current-level) ?*)` $1
-  :PROPERTIES:
-  :ANKI_NOTE_TYPE: Basic (and reversed card)
-  :END:
-  $0
-#+end_src
-
-** Source Generic
-#+begin_src conf :tangle ~/.config/emacs/yasnippet/snippets/org-mode/src_generic
-# -*- mode: snippet -*-
-# name: source code
-# key: <s
-# --
-#+BEGIN_SRC $1
-$0
-#+END_SRC
-#+end_src
-
-** Source Rust
-#+begin_src conf :tangle ~/.config/emacs/yasnippet/snippets/org-mode/src_rust
-  # -*- mode: snippet -*-
-  # name: rust
-  # key: <rust
-  # --
-  ,#+BEGIN_SRC rust
-  $0
-#+END_SRC
-#+end_src
 
 * MPV
 #+BEGIN_SRC conf :tangle ~/.config/mpv/mpv.conf
